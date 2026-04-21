@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// =============================================================================
+// Three-layer model: Company → Agent → Permission
+//
+// - User         = the customer's Company, auth'd by a passkey (WebAuthn).
+// - Agent        = a named spender; owns a ZeroDev Kernel v3 smart account on
+//                  Arc. Holds its own balance; funded directly.
+// - Permission   = a scoped signer; a ZeroDev session key installed on the
+//                  agent's Kernel with call / value-limit / rate-limit policies.
+//
+// All three are 1→N. Balance lives on Agent.accountAddress. Permissions are
+// what the agent runtime uses to sign userOps; each has its own scope and its
+// own ephemeral ECDSA signer (returned once as the API secret).
+// =============================================================================
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  companyName         String
+  // WebAuthn credential id (base64url). Identifies the customer's passkey on
+  // this device. One passkey = one company for the hackathon MVP.
+  passkeyCredentialId String    @unique
+  // Base64url-encoded COSE public key from the WebAuthn attestation. Used to
+  // verify future assertions.
+  passkeyPublicKey    String
+  // Running passkey signature counter to defend against cloned authenticators.
+  passkeyCounter      Int       @default(0)
+  createdAt           DateTime  @default(now())
+  agents              Agent[]
+  sessions            Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Agent {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  // Kernel v3 smart-account address on Arc. Server-only; revealed only via
+  // the opt-in deposit panel on this agent's own detail page.
+  accountAddress String        @unique
+  // The agent's Kernel owner (ECDSA sudo validator) private key, encrypted at
+  // rest with APP_ENCRYPTION_KEY. Server-held; used only to install or revoke
+  // session-key permissions. Hackathon shortcut: in a production build this
+  // would be a passkey-owner validator with user verification per signature.
+  ownerCiphertext String
+  status         String        // "active" | "paused" | "archived"
+  createdAt      DateTime      @default(now())
+  archivedAt     DateTime?
+  permissions    Permission[]
+  payees         Payee[]
+  transactions   Transaction[]
+
+  @@index([userId])
+}
+
+model Permission {
+  id                   String    @id @default(cuid())
+  agentId              String
+  agent                Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name                 String
+  // ZeroDev session-key identifier. Opaque handle the server uses to find
+  // and uninstall the permission later.
+  sessionKeyId         String
+  // EVM address of the session key. Server-only.
+  sessionKeyAddress    String
+  // Serialized permission-account (from `serializePermissionAccount`) encrypted
+  // at rest with APP_ENCRYPTION_KEY. Raw material is returned ONCE in the
+  // credentials response and never rendered again.
+  sessionKeyCiphertext String?
+  // JSON: { mode, perTxCapUsd, monthlyCapUsd, payeeIds, allowedOperations }
+  scope                String
+  status               String    // "active" | "revoked" | "failed" | "pending"
+  installTxHash        String?
+  revokeTxHash         String?
+  createdAt            DateTime  @default(now())
+  revokedAt            DateTime?
+
+  @@index([agentId])
+}
+
+model Payee {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  label     String
+  // Server-only. Never rendered in the UI after creation; only `label` is
+  // ever shown.
+  address   String
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  agentId      String
+  agent        Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  permissionId String?
+  // Snapshot of payee label at send time (payees can be deleted).
+  payeeLabel   String?
+  // USD-denominated (dollars, not cents). USDC on Arc is 1:1.
+  amountUsd    Float
+  direction    String   // "in" | "out"
+  status       String   // "pending" | "confirmed" | "failed"
+  // Server-side only. Never rendered in the UI.
+  txHash       String?
+  createdAt    DateTime @default(now())
+
+  @@index([agentId])
+}

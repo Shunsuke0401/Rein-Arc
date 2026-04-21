@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rein-arc-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3457"],
+      "port": 3457,
+      "cwd": "rein-arc"
+    }
+  ]
+}
