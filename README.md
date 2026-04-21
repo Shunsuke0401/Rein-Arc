@@ -170,5 +170,14 @@ Documented in `CLAUDE.md`. Short version:
   under encryption; moving to WebAuthn owner with per-signature UV is a
   known follow-up — see `src/lib/kernel.ts`).
 - Real fiat on-ramp (Stripe / Circle API).
+- **Credit card payments via card-provider pull, scoped on-chain.**
+  Issue a virtual card through a card provider (Lithic / Stripe Issuing /
+  Circle Card), make the provider's settlement contract a first-class
+  payee, and scope the Agent's session key to the card provider's *pull*
+  entrypoint only (e.g. `settle(cardId, amount)`) — never a generic
+  `approve` or `transferFrom`. The card provider can charge the Agent up
+  to the per-tx and monthly caps; it cannot drain the account or move
+  funds anywhere else. Same on-chain guardrail story, extended from USDC
+  transfers to card rails.
 - Multi-admin quorum, 24h timelock on expansions.
 - Framework adapters.
