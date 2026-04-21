@@ -1,0 +1,38 @@
+{
+  "name": "@rein/sdk",
+  "version": "0.1.0",
+  "description": "Bounded payments for AI agents. One API key, on-chain spend caps.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "payments",
+    "usdc",
+    "rein"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

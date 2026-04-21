@@ -6,6 +6,7 @@ import type { Address } from "viem";
 import { ActivityList } from "@/components/activity-list";
 import { AgentDepositPanel } from "@/components/agent-deposit-panel";
 import { ArchiveDialog } from "@/components/archive-dialog";
+import { IntegratePanel } from "@/components/integrate-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +47,11 @@ export default async function AgentDetailPage({
   const session = await requireSession();
   const { id } = await params;
   const { tab } = await searchParams;
-  const activeTab = (tab ?? "overview") as "overview" | "permissions" | "payees";
+  const activeTab = (tab ?? "overview") as
+    | "overview"
+    | "permissions"
+    | "payees"
+    | "integrate";
 
   const agent = await db.agent.findUnique({
     where: { id },
@@ -178,6 +183,12 @@ export default async function AgentDetailPage({
           active={activeTab === "payees"}
           href={`/dashboard/agents/${agent.id}?tab=payees`}
         />
+        <TabLink
+          id="integrate"
+          label="Integrate"
+          active={activeTab === "integrate"}
+          href={`/dashboard/agents/${agent.id}?tab=integrate`}
+        />
       </div>
 
       {activeTab === "overview" ? (
@@ -290,6 +301,14 @@ export default async function AgentDetailPage({
             }))}
           />
         </div>
+      ) : null}
+
+      {activeTab === "integrate" ? (
+        <IntegratePanel
+          agentName={agent.name}
+          firstPayeeLabel={agent.payees[0]?.label}
+          hasPermission={permissions.some((p) => p.status === "active")}
+        />
       ) : null}
     </div>
   );

@@ -32,10 +32,21 @@ export function CredentialsModal({
   const [ack, setAck] = React.useState(false);
   const [envCopied, setEnvCopied] = React.useState(false);
 
+  const reinApiKey = React.useMemo(() => {
+    const hex = credentials.apiSecret.startsWith("0x")
+      ? credentials.apiSecret.slice(2)
+      : credentials.apiSecret;
+    return `rein_${credentials.apiKeyId}_${hex}`;
+  }, [credentials.apiKeyId, credentials.apiSecret]);
+
   async function copyEnv() {
-    const base = typeof window !== "undefined" ? window.location.origin : "http://localhost:3457";
+    const base =
+      typeof window !== "undefined" ? window.location.origin : "http://localhost:3457";
     const env = [
       `REIN_BASE=${base}`,
+      `REIN_API_KEY=${reinApiKey}`,
+      "",
+      "# Legacy two-field format (if using the older /api/payments route):",
       `REIN_API_KEY_ID=${credentials.apiKeyId}`,
       `REIN_API_SECRET=${credentials.apiSecret}`,
       "",
@@ -57,6 +68,11 @@ export function CredentialsModal({
         </DialogHeader>
 
         <div className="space-y-3">
+          <CredField
+            label="API key (use with @rein/sdk)"
+            value={reinApiKey}
+            tone="secret"
+          />
           <CredField
             label="Organization ID"
             value={credentials.organizationId}
