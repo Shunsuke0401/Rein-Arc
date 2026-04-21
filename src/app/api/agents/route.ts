@@ -28,8 +28,14 @@ const payeeInput = z.object({
 
 const createAgentSchema = z.object({
   name: z.string().min(1).max(40),
-  perPaymentLimitUsd: z.coerce.number().positive().max(1_000_000),
-  monthlyLimitUsd: z.coerce.number().positive().max(1_000_000),
+  // All three below are optional. If `perPaymentLimitUsd` + `monthlyLimitUsd`
+  // are both present, the endpoint atomically creates the agent + installs a
+  // session key + returns one-shot credentials. If they're absent, the agent
+  // is created as a shell (Kernel deployed, no session key) and the caller
+  // follows up with POST /api/agents/:id/permissions later — used by the
+  // onboarding wizard where permission setup is its own step.
+  perPaymentLimitUsd: z.coerce.number().positive().max(1_000_000).optional(),
+  monthlyLimitUsd: z.coerce.number().positive().max(1_000_000).optional(),
   payees: z.array(payeeInput).max(32).default([]),
 });
 
@@ -77,7 +83,14 @@ export async function POST(req: Request) {
     );
   }
 
-  if (parsed.data.perPaymentLimitUsd > parsed.data.monthlyLimitUsd) {
+  const wantsPermission =
+    parsed.data.perPaymentLimitUsd !== undefined &&
+    parsed.data.monthlyLimitUsd !== undefined;
+
+  if (
+    wantsPermission &&
+    parsed.data.perPaymentLimitUsd! > parsed.data.monthlyLimitUsd!
+  ) {
     return NextResponse.json(
       { error: "Per-payment limit can't exceed monthly limit." },
       { status: 400 },
@@ -119,13 +132,24 @@ export async function POST(req: Request) {
       )
     : [];
 
+  // Shell-only mode: agent created, no session key. The caller (typically the
+  // onboarding wizard) will POST /api/agents/:id/permissions later.
+  if (!wantsPermission) {
+    const summary = await summarizeAgent(agent);
+    return NextResponse.json({
+      ok: true,
+      agent: summary,
+      payees: createdPayees.map((p) => ({ id: p.id, label: p.label })),
+    });
+  }
+
   let installed: Awaited<ReturnType<typeof installSessionKey>>;
   try {
     installed = await installSessionKey({
       ownerPrivateKey: decrypt(agent.ownerCiphertext) as Hex,
       scope: {
-        perTxCapUsd: parsed.data.perPaymentLimitUsd,
-        monthlyCapUsd: parsed.data.monthlyLimitUsd,
+        perTxCapUsd: parsed.data.perPaymentLimitUsd!,
+        monthlyCapUsd: parsed.data.monthlyLimitUsd!,
         allowedPayees: createdPayees.map(
           (p) => p.address.toLowerCase() as `0x${string}`,
         ),
