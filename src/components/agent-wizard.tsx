@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -42,7 +43,14 @@ export function AgentWizard() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [step, setStep] = React.useState<Step>(1);
+  const [step, setStepRaw] = React.useState<Step>(1);
+  const [direction, setDirection] = React.useState<1 | -1>(1);
+  const setStep = React.useCallback((next: Step) => {
+    setStepRaw((prev) => {
+      setDirection(next > prev ? 1 : -1);
+      return next;
+    });
+  }, []);
   const [busy, setBusy] = React.useState(false);
   const [agentId, setAgentId] = React.useState<string | null>(null);
   const [agentName, setAgentName] = React.useState("");
@@ -72,121 +80,135 @@ export function AgentWizard() {
         ))}
       </ol>
 
-      {step === 1 ? (
-        <StepName
-          busy={busy}
-          onSubmit={async (name) => {
-            setBusy(true);
-            try {
-              const resp = await fetch("/api/agents", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name }),
-              });
-              const data = await resp.json();
-              if (!resp.ok) throw new Error(data.error ?? "Couldn't create agent");
-              setAgentId(data.agent.id);
-              setAgentName(data.agent.name);
-              setStep(2);
-            } catch (err) {
-              toast({
-                title: "Couldn't create agent",
-                description: err instanceof Error ? err.message : "Unknown",
-                variant: "destructive",
-              });
-            } finally {
-              setBusy(false);
-            }
-          }}
-        />
-      ) : null}
+      <div className="relative overflow-hidden">
+        <AnimatePresence mode="wait" initial={false} custom={direction}>
+          {step === 1 && (
+            <SlidePanel key="step-1" direction={direction}>
+              <StepName
+                busy={busy}
+                onSubmit={async (name) => {
+                  setBusy(true);
+                  try {
+                    const resp = await fetch("/api/agents", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) throw new Error(data.error ?? "Couldn't create agent");
+                    setAgentId(data.agent.id);
+                    setAgentName(data.agent.name);
+                    setStep(2);
+                  } catch (err) {
+                    toast({
+                      title: "Couldn't create agent",
+                      description: err instanceof Error ? err.message : "Unknown",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            </SlidePanel>
+          )}
 
-      {step === 2 && agentId ? (
-        <StepDeposit
-          agentId={agentId}
-          agentName={agentName}
-          onContinue={() => setStep(3)}
-          onSkip={() => setStep(3)}
-        />
-      ) : null}
+          {step === 2 && agentId && (
+            <SlidePanel key="step-2" direction={direction}>
+              <StepDeposit
+                agentId={agentId}
+                agentName={agentName}
+                onContinue={() => setStep(3)}
+                onSkip={() => setStep(3)}
+              />
+            </SlidePanel>
+          )}
 
-      {step === 3 && agentId ? (
-        <StepPayees
-          agentId={agentId}
-          busy={busy}
-          onAddPayees={async (drafts) => {
-            setBusy(true);
-            try {
-              const added: SavedPayee[] = [];
-              for (const d of drafts) {
-                const resp = await fetch(`/api/agents/${agentId}/payees`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ label: d.label, address: d.address }),
-                });
-                const body = await resp.json();
-                if (!resp.ok) throw new Error(body.error ?? "Payee failed");
-                added.push({ id: body.payee.id, label: body.payee.label });
-              }
-              setSavedPayees((prev) => [...prev, ...added]);
-              setStep(4);
-            } catch (err) {
-              toast({
-                title: "Couldn't save payees",
-                description: err instanceof Error ? err.message : "Unknown",
-                variant: "destructive",
-              });
-            } finally {
-              setBusy(false);
-            }
-          }}
-          onSkip={() => setStep(4)}
-        />
-      ) : null}
+          {step === 3 && agentId && (
+            <SlidePanel key="step-3" direction={direction}>
+              <StepPayees
+                agentId={agentId}
+                busy={busy}
+                onBack={() => setStep(2)}
+                onAddPayees={async (drafts) => {
+                  setBusy(true);
+                  try {
+                    const added: SavedPayee[] = [];
+                    for (const d of drafts) {
+                      const resp = await fetch(`/api/agents/${agentId}/payees`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ label: d.label, address: d.address }),
+                      });
+                      const body = await resp.json();
+                      if (!resp.ok) throw new Error(body.error ?? "Payee failed");
+                      added.push({ id: body.payee.id, label: body.payee.label });
+                    }
+                    setSavedPayees((prev) => [...prev, ...added]);
+                    setStep(4);
+                  } catch (err) {
+                    toast({
+                      title: "Couldn't save payees",
+                      description: err instanceof Error ? err.message : "Unknown",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                onSkip={() => setStep(4)}
+              />
+            </SlidePanel>
+          )}
 
-      {step === 4 && agentId ? (
-        <StepPermission
-          agentId={agentId}
-          agentName={agentName}
-          savedPayees={savedPayees}
-          busy={busy}
-          onCreate={async ({ perPayment, monthly }) => {
-            setBusy(true);
-            try {
-              const resp = await fetch(`/api/agents/${agentId}/permissions`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  name: `${agentName} key`,
-                  perPaymentLimitUsd: perPayment,
-                  monthlyLimitUsd: monthly,
-                  payeeIds: savedPayees.map((p) => p.id),
-                  allowedOperations: ["send_payment"],
-                }),
-              });
-              const data = await resp.json();
-              if (!resp.ok) throw new Error(data.error ?? "Permission failed");
-              setCredentials({ payload: data.credentials, name: agentName });
-              toast({
-                title: "Agent created",
-                description: "Copy the API key before closing.",
-                variant: "success",
-              });
-            } catch (err) {
-              toast({
-                title: "Couldn't create API key",
-                description: err instanceof Error ? err.message : "Unknown",
-                variant: "destructive",
-              });
-            } finally {
-              setBusy(false);
-            }
-          }}
-          onSkip={() => {
-            if (agentId) router.push(`/dashboard/agents/${agentId}`);
-          }}
-        />
-      ) : null}
+          {step === 4 && agentId && (
+            <SlidePanel key="step-4" direction={direction}>
+              <StepPermission
+                agentId={agentId}
+                agentName={agentName}
+                savedPayees={savedPayees}
+                busy={busy}
+                onBack={() => setStep(3)}
+                onCreate={async ({ perPayment, monthly }) => {
+                  setBusy(true);
+                  try {
+                    const resp = await fetch(`/api/agents/${agentId}/permissions`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        name: `${agentName} key`,
+                        perPaymentLimitUsd: perPayment,
+                        monthlyLimitUsd: monthly,
+                        payeeIds: savedPayees.map((p) => p.id),
+                        allowedOperations: ["send_payment"],
+                      }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) throw new Error(data.error ?? "Permission failed");
+                    setCredentials({ payload: data.credentials, name: agentName });
+                    toast({
+                      title: "Agent created",
+                      description: "Copy the API key before closing.",
+                      variant: "success",
+                    });
+                  } catch (err) {
+                    toast({
+                      title: "Couldn't create API key",
+                      description: err instanceof Error ? err.message : "Unknown",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                onSkip={() => {
+                  if (agentId) router.push(`/dashboard/agents/${agentId}`);
+                }}
+              />
+            </SlidePanel>
+          )}
+        </AnimatePresence>
+      </div>
 
       {credentials ? (
         <CredentialsModal
@@ -200,6 +222,29 @@ export function AgentWizard() {
         />
       ) : null}
     </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Slide wrapper
+// -----------------------------------------------------------------------------
+
+function SlidePanel({
+  direction,
+  children,
+}: {
+  direction: 1 | -1;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      initial={{ x: direction === 1 ? 48 : -48, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: direction === 1 ? -48 : 48, opacity: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -284,8 +329,10 @@ function StepDeposit({
         const r = await fetch(`/api/agents/${agentId}/deposit-address`);
         const body = await r.json();
         if (!r.ok) throw new Error(body.error ?? "Failed");
-        setAddress(body.address);
-        const png = await QRCode.toDataURL(body.address, { margin: 1, width: 200 });
+        const addr = body.depositAddress ?? body.address;
+        if (!addr) throw new Error("No deposit address in response");
+        setAddress(addr);
+        const png = await QRCode.toDataURL(addr, { margin: 1, width: 200 });
         setQr(png);
       } catch (err) {
         toast({
@@ -374,11 +421,13 @@ function StepPayees({
   busy,
   onAddPayees,
   onSkip,
+  onBack,
 }: {
   agentId: string;
   busy: boolean;
   onAddPayees: (drafts: PayeeDraft[]) => void;
   onSkip: () => void;
+  onBack: () => void;
 }) {
   const [rows, setRows] = React.useState<PayeeDraft[]>([
     { label: "", address: "" },
@@ -454,19 +503,24 @@ function StepPayees({
           any address up to the spending caps.
         </p>
       </div>
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
-          Skip for now
+      <div className="flex items-center justify-between gap-2">
+        <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+          Back
         </Button>
-        <Button type="submit" disabled={busy || !valid}>
-          {busy ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Saving…
-            </>
-          ) : (
-            <>Continue</>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
+            Skip for now
+          </Button>
+          <Button type="submit" disabled={busy || !valid}>
+            {busy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+              </>
+            ) : (
+              <>Continue</>
+            )}
+          </Button>
+        </div>
       </div>
     </form>
   );
@@ -483,6 +537,7 @@ function StepPermission({
   busy,
   onCreate,
   onSkip,
+  onBack,
 }: {
   agentId: string;
   agentName: string;
@@ -490,6 +545,7 @@ function StepPermission({
   busy: boolean;
   onCreate: (p: { perPayment: number; monthly: number }) => void;
   onSkip: () => void;
+  onBack: () => void;
 }) {
   const [perPayment, setPerPayment] = React.useState("50");
   const [monthly, setMonthly] = React.useState("2000");
@@ -550,19 +606,24 @@ function StepPermission({
           </div>
         )}
       </div>
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
-          Skip for now
+      <div className="flex items-center justify-between gap-2">
+        <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+          Back
         </Button>
-        <Button type="submit" disabled={busy}>
-          {busy ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Creating…
-            </>
-          ) : (
-            <>Create API key</>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
+            Skip for now
+          </Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+              </>
+            ) : (
+              <>Create API key</>
+            )}
+          </Button>
+        </div>
       </div>
     </form>
   );
