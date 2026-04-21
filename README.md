@@ -1,12 +1,11 @@
-# Rein on Arc — spend control for AI agents
+# Rein — spend control for AI agents
 
 Give your AI agents a budget they can't exceed. Create an agent, set a
 per-payment and monthly limit, add payees, and issue scoped credentials that
 your runtime uses to make payments. Rein enforces every payment in real time
 on-chain.
 
-This is the Arc build — a full rewrite of [rein-app](../rein-app) that swaps
-Tempo/Turnkey for Arc (Circle's L1) with ZeroDev Kernel v3 smart accounts and
+Built on Arc (Circle's L1) with ZeroDev Kernel v3 smart accounts and
 direct WebAuthn passkeys.
 
 ## Model
@@ -46,32 +45,6 @@ npm run dev
 ```
 
 Open <http://localhost:3000> — the root redirects to `/login`.
-
-## Deploy to Railway
-
-Railway is the shortest path today — SQLite on a persistent volume, no schema
-migration, no serverless quirks.
-
-1. `railway.app/new` → Deploy from GitHub → pick this repo.
-2. **Settings → Volumes**: mount a 1 GB volume at `/data`.
-3. **Settings → Variables** (all values from your local `.env.local` unless noted):
-   - `DATABASE_URL=file:/data/dev.db`
-   - `APP_ENCRYPTION_KEY=<your 64-hex key>`
-   - `ARC_RPC_URL`, `ARC_CHAIN_ID=5042002`, `NEXT_PUBLIC_ARC_CHAIN_ID=5042002`
-   - `USDC_CONTRACT_ARC=0x3600000000000000000000000000000000000000`
-   - `ZERODEV_PROJECT_ID`, `ZERODEV_BUNDLER_URL`, `ZERODEV_PAYMASTER_URL`,
-     `NEXT_PUBLIC_ZERODEV_PROJECT_ID`
-   - `WEBAUTHN_RP_ID=<your railway hostname, no https://>`
-   - `NEXT_PUBLIC_APP_URL=https://<your railway hostname>`
-   - `WEBAUTHN_RP_NAME=Rein`
-4. **Settings → Networking**: Generate a domain. Paste the hostname into
-   `WEBAUTHN_RP_ID` and `NEXT_PUBLIC_APP_URL`, then redeploy.
-5. Build and start commands are inferred from `package.json`:
-   - build: `prisma generate && next build`
-   - start: `prisma migrate deploy && next start`
-
-**Gotcha**: the ZeroDev paymaster policy must allow your Railway origin, or
-userOp sponsorship rejects calls from the new host.
 
 ## Env vars
 
