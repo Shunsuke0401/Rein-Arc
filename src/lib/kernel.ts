@@ -324,7 +324,13 @@ export async function sendUsdcFromSessionKey(params: {
       { to: USDC_ADDRESS, data, value: 0n },
     ]),
   });
-  const receipt = await client.waitForUserOperationReceipt({ hash });
+  // Arc's bundler can take >60s to confirm on a cold path; viem's default
+  // timeout is too short. Poll a bit longer before giving up.
+  const receipt = await client.waitForUserOperationReceipt({
+    hash,
+    timeout: 180_000,
+    pollingInterval: 2_000,
+  });
   return { userOpHash: hash, txHash: receipt.receipt.transactionHash };
 }
 
