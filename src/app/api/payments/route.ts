@@ -53,6 +53,12 @@ export async function POST(req: Request) {
     );
   }
 
+  const scope = JSON.parse(permission.scope) as {
+    perPaymentLimitUsd: number;
+    monthlyLimitUsd: number;
+    payeeIds?: string[];
+  };
+
   let recipient: Address | undefined;
   let payeeLabel: string | undefined;
   if (parsed.data.payeeId) {
@@ -76,12 +82,34 @@ export async function POST(req: Request) {
     );
   }
 
-  // Enforce the scope's per-tx cap here too (defense in depth; the on-chain
-  // permission plugin is the authoritative check).
-  const scope = JSON.parse(permission.scope) as {
-    perPaymentLimitUsd: number;
-    monthlyLimitUsd: number;
-  };
+  // Enforce payee allow-list when the permission has one. An empty (or missing)
+  // payee list means "any recipient up to caps" — intentional for agents that
+  // don't need a fixed payee set.
+  const allowedPayeeIds = scope.payeeIds ?? [];
+  if (allowedPayeeIds.length > 0) {
+    const allowedPayees = await db.payee.findMany({
+      where: { id: { in: allowedPayeeIds } },
+      select: { address: true, label: true },
+    });
+    const allowedAddrs = new Set(
+      allowedPayees.map((p) => p.address.toLowerCase()),
+    );
+    if (!allowedAddrs.has((recipient as string).toLowerCase())) {
+      return NextResponse.json(
+        {
+          error:
+            "Recipient is not in this permission's payee allow-list.",
+        },
+        { status: 403 },
+      );
+    }
+    if (!payeeLabel) {
+      payeeLabel = allowedPayees.find(
+        (p) => p.address.toLowerCase() === (recipient as string).toLowerCase(),
+      )?.label;
+    }
+  }
+
   if (parsed.data.amountUsd > scope.perPaymentLimitUsd) {
     return NextResponse.json(
       { error: "Amount exceeds this permission's per-payment limit." },
