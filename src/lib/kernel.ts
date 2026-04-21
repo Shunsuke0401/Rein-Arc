@@ -19,6 +19,7 @@ import {
   toCallPolicy,
 } from "@zerodev/permissions/policies";
 import { toRateLimitPolicy } from "@zerodev/permissions/policies";
+import { ParamCondition } from "@zerodev/permissions/policies";
 import { toECDSASigner } from "@zerodev/permissions/signers";
 import {
   encodeFunctionData,
@@ -63,6 +64,11 @@ export type SessionKeyScope = {
   monthlyCapUsd: number;
   // 30-day rolling window, approximated as a single rate-limit interval.
   windowDays?: number;
+  // Recipient allow-list. If non-empty, the CallPolicy pins the `to` arg of
+  // `transfer(to, amount)` via ParamCondition.ONE_OF, so the Kernel's
+  // permission validator rejects any payment to an address not in this list —
+  // enforced on chain, not by the Rein server.
+  allowedPayees?: Address[];
 };
 
 function bundlerTransport() {
@@ -137,6 +143,17 @@ function buildPoliciesForScope(scope: SessionKeyScope) {
     String(scope.perTxCapUsd),
     USDC_DECIMALS,
   );
+  const recipientArg =
+    scope.allowedPayees && scope.allowedPayees.length > 0
+      ? {
+          condition: ParamCondition.ONE_OF as const,
+          value: [...scope.allowedPayees] as `0x${string}`[],
+        }
+      : null;
+  const amountArg = {
+    condition: ParamCondition.LESS_THAN as const,
+    value: perTxCapWei + 1n,
+  };
   const callPolicy = toCallPolicy({
     policyVersion: CallPolicyVersion.V0_0_5,
     permissions: [
@@ -145,13 +162,7 @@ function buildPoliciesForScope(scope: SessionKeyScope) {
         abi: erc20Abi,
         functionName: "transfer",
         valueLimit: 0n,
-        args: [
-          null,
-          {
-            condition: 2, // LESS_THAN — perTxCapWei is the exclusive upper bound.
-            value: perTxCapWei + 1n,
-          },
-        ],
+        args: [recipientArg, amountArg],
       },
     ],
   });

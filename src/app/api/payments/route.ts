@@ -82,32 +82,19 @@ export async function POST(req: Request) {
     );
   }
 
-  // Enforce payee allow-list when the permission has one. An empty (or missing)
-  // payee list means "any recipient up to caps" — intentional for agents that
-  // don't need a fixed payee set.
-  const allowedPayeeIds = scope.payeeIds ?? [];
-  if (allowedPayeeIds.length > 0) {
-    const allowedPayees = await db.payee.findMany({
-      where: { id: { in: allowedPayeeIds } },
-      select: { address: true, label: true },
+  // Resolve the recipient label from the agent's saved payees (if any) for
+  // nicer activity log entries. The authoritative payee allow-list lives in
+  // the on-chain CallPolicy (via ParamCondition.ONE_OF) — a non-allowlisted
+  // recipient causes the bundler to reject the userOp.
+  if (!payeeLabel && scope.payeeIds?.length) {
+    const match = await db.payee.findFirst({
+      where: {
+        id: { in: scope.payeeIds },
+        address: (recipient as string).toLowerCase(),
+      },
+      select: { label: true },
     });
-    const allowedAddrs = new Set(
-      allowedPayees.map((p) => p.address.toLowerCase()),
-    );
-    if (!allowedAddrs.has((recipient as string).toLowerCase())) {
-      return NextResponse.json(
-        {
-          error:
-            "Recipient is not in this permission's payee allow-list.",
-        },
-        { status: 403 },
-      );
-    }
-    if (!payeeLabel) {
-      payeeLabel = allowedPayees.find(
-        (p) => p.address.toLowerCase() === (recipient as string).toLowerCase(),
-      )?.label;
-    }
+    if (match) payeeLabel = match.label;
   }
 
   if (parsed.data.amountUsd > scope.perPaymentLimitUsd) {

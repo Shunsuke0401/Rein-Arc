@@ -101,6 +101,9 @@ export async function POST(req: Request, ctx: Params) {
       scope: {
         perTxCapUsd: parsed.data.perPaymentLimitUsd,
         monthlyCapUsd: parsed.data.monthlyLimitUsd,
+        allowedPayees: payees.map(
+          (p) => p.address.toLowerCase() as `0x${string}`,
+        ),
       },
     });
   } catch (err) {

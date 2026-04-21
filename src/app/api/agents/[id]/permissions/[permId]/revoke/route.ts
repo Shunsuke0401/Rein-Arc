@@ -44,13 +44,23 @@ export async function POST(_req: Request, ctx: Params) {
     const scope = JSON.parse(permission.scope) as {
       perPaymentLimitUsd: number;
       monthlyLimitUsd: number;
+      payeeIds?: string[];
     };
+    const payees = scope.payeeIds?.length
+      ? await db.payee.findMany({
+          where: { id: { in: scope.payeeIds } },
+          select: { address: true },
+        })
+      : [];
     const txHash = await revokeSessionKey({
       ownerPrivateKey: ownerPk,
       sessionKeyAddress: permission.sessionKeyAddress as Address,
       scope: {
         perTxCapUsd: scope.perPaymentLimitUsd,
         monthlyCapUsd: scope.monthlyLimitUsd,
+        allowedPayees: payees.map(
+          (p) => p.address.toLowerCase() as `0x${string}`,
+        ),
       },
     });
     await db.permission.update({
