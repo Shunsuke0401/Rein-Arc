@@ -69,7 +69,7 @@ export function CredentialsModal({
 
         <div className="space-y-3">
           <CredField
-            label="API key (use with @rein/sdk)"
+            label="API key (use with rein-sdk)"
             value={reinApiKey}
             tone="secret"
           />

@@ -1,5 +1,5 @@
 /**
- * @rein/sdk — bounded payments for AI agents.
+ * rein-sdk — bounded payments for AI agents.
  *
  * Minimal client. One API key. Every call is auth-gated and every payment
  * is signed server-side by an on-chain-scoped session key. The caps, payee
@@ -8,7 +8,7 @@
  *
  * Usage:
  *
- *   import { Rein } from "@rein/sdk";
+ *   import { Rein } from "rein-sdk";
  *
  *   const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });
  *

@@ -44,7 +44,7 @@ export function IntegratePanel({
           <CardTitle className="text-base">1. Install the SDK</CardTitle>
         </CardHeader>
         <CardContent>
-          <CodeBlock value="npm install @rein/sdk" />
+          <CodeBlock value="npm install rein-sdk" />
         </CardContent>
       </Card>
 
@@ -191,7 +191,7 @@ function CodeBlock({ value }: { value: string }) {
 function snippet(lang: Language, baseUrl: string, payee: string): string {
   if (lang === "node") {
     return [
-      `import { Rein } from "@rein/sdk";`,
+      `import { Rein } from "rein-sdk";`,
       ``,
       `const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });`,
       ``,

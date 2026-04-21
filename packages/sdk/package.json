@@ -1,5 +1,5 @@
 {
-  "name": "@rein/sdk",
+  "name": "rein-sdk",
   "version": "0.1.0",
   "description": "Bounded payments for AI agents. One API key, on-chain spend caps.",
   "type": "module",

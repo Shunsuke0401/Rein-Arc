@@ -1,11 +1,11 @@
-# @rein/sdk
+# rein-sdk
 
 Bounded payments for AI agents. One API key. On-chain spend caps the caller can't bypass.
 
 ## Install
 
 ```bash
-npm install @rein/sdk
+npm install rein-sdk
 ```
 
 (Post-hackathon this goes live on npm. Today it lives in the Rein-Arc repo; point your `package.json` at the GitHub path if you want to try it before publish:)
@@ -19,7 +19,7 @@ npm install github:Shunsuke0401/Rein-Arc#main
 Get an API key: create an agent in the Rein dashboard, save the `REIN_API_KEY` from the one-shot credentials modal.
 
 ```ts
-import { Rein } from "@rein/sdk";
+import { Rein } from "rein-sdk";
 
 const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });
 
@@ -73,7 +73,7 @@ All SDK errors are `ReinError` instances with a typed `code`:
 | `INTERNAL` | Server error. |
 
 ```ts
-import { Rein, ReinError } from "@rein/sdk";
+import { Rein, ReinError } from "rein-sdk";
 
 try {
   await rein.payments.create({ to: "Stripe payouts", amountUsd: 99 });
