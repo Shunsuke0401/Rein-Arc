@@ -1,7 +1,18 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  BadgeCheck,
+  Banknote,
+  Check,
+  Copy,
+  KeyRound,
+  Loader2,
+  Plus,
+  Tag,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import QRCode from "qrcode";
@@ -19,23 +30,39 @@ type Step = 1 | 2 | 3 | 4;
 type PayeeDraft = { label: string; address: string };
 type SavedPayee = { id: string; label: string };
 
-const STEPS: { id: Step; title: string; caption: string }[] = [
-  { id: 1, title: "Name the agent", caption: "What should we call it?" },
+type StepMeta = {
+  id: Step;
+  title: string;
+  caption: string;
+  Icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }>;
+};
+
+const STEPS: StepMeta[] = [
+  {
+    id: 1,
+    title: "Name the agent",
+    caption: "Pick something you'll recognize in activity logs.",
+    Icon: Tag,
+  },
   {
     id: 2,
     title: "Fund the agent",
     caption: "Send USDC to the deposit address, or skip and fund later.",
+    Icon: Banknote,
   },
   {
     id: 3,
     title: "Add payees",
-    caption: "Recipients the agent can pay. Skip if you want it unrestricted.",
+    caption:
+      "Addresses the agent is allowed to pay. Skip to leave the agent unrestricted.",
+    Icon: Users,
   },
   {
     id: 4,
-    title: "Add your first agent permission",
+    title: "Generate your agent's API key",
     caption:
-      "Set the spending caps. We'll generate a one-shot API key for your AI agent.",
+      "Set the spending caps. You'll get a one-shot API key to paste into your AI agent.",
+    Icon: KeyRound,
   },
 ];
 
@@ -261,44 +288,46 @@ function StepName({
 }) {
   const [name, setName] = React.useState("");
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit(name);
-      }}
-      className="space-y-6 max-w-md"
-    >
-      <StepHeader step={1} />
-      <div className="space-y-2">
-        <Label htmlFor="name">Agent name</Label>
-        <Input
-          id="name"
-          placeholder="support-refunds"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={40}
-          required
-          disabled={busy}
-        />
-        <p className="text-xs text-neutral-500">
-          Shown in activity logs. Can&rsquo;t be changed later.
-        </p>
-      </div>
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" variant="outline" disabled={busy} asChild>
-          <a href="/dashboard/agents">Cancel</a>
-        </Button>
-        <Button type="submit" disabled={busy || !name.trim()}>
-          {busy ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Creating…
-            </>
-          ) : (
-            <>Continue</>
-          )}
-        </Button>
-      </div>
-    </form>
+    <StepCard>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit(name);
+        }}
+        className="space-y-6"
+      >
+        <StepHeader step={1} />
+        <div className="space-y-2">
+          <Label htmlFor="name">Agent name</Label>
+          <Input
+            id="name"
+            placeholder="support-refunds"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={40}
+            required
+            disabled={busy}
+          />
+          <p className="text-xs text-muted-foreground">
+            Shown in activity logs. Can&rsquo;t be changed later.
+          </p>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" disabled={busy} asChild>
+            <a href="/dashboard/agents">Cancel</a>
+          </Button>
+          <Button type="submit" disabled={busy || !name.trim()} className="min-w-32">
+            {busy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+              </>
+            ) : (
+              <>Continue</>
+            )}
+          </Button>
+        </div>
+      </form>
+    </StepCard>
   );
 }
 
@@ -354,61 +383,63 @@ function StepDeposit({
   }
 
   return (
-    <div className="space-y-6 max-w-md">
-      <StepHeader step={2} />
-      <div className="rounded-lg border p-6 space-y-4">
-        <div>
-          <Label className="text-xs text-neutral-600">
-            Deposit address for {agentName}
-          </Label>
-          <p className="text-xs text-neutral-500 mt-1">
-            Send USDC on Arc testnet to this address. Fund now or later — you
-            can reveal this again from the agent page.
-          </p>
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-neutral-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+    <StepCard>
+      <div className="space-y-6">
+        <StepHeader step={2} />
+        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+          <div>
+            <Label className="text-xs font-medium text-foreground">
+              Deposit address for {agentName}
+            </Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Send USDC on Arc testnet to this address. Fund now or later — you
+              can reveal this again from the agent page.
+            </p>
           </div>
-        ) : address ? (
-          <div className="flex items-start gap-4">
-            {qr ? (
-              <img
-                src={qr}
-                alt=""
-                className="h-32 w-32 rounded-md border"
-                width={128}
-                height={128}
-              />
-            ) : null}
-            <div className="flex-1 space-y-2">
-              <div className="rounded-md bg-neutral-50 p-2 text-xs font-mono break-all">
-                {address}
-              </div>
-              <Button size="sm" variant="outline" onClick={copy}>
-                {copied ? (
-                  <>
-                    <Check className="h-3 w-3" /> Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3 w-3" /> Copy
-                  </>
-                )}
-              </Button>
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
-          </div>
-        ) : null}
+          ) : address ? (
+            <div className="flex items-start gap-4">
+              {qr ? (
+                <img
+                  src={qr}
+                  alt=""
+                  className="h-32 w-32 rounded-md border border-border bg-white"
+                  width={128}
+                  height={128}
+                />
+              ) : null}
+              <div className="flex-1 space-y-2">
+                <div className="rounded-lg border border-border bg-background p-2 text-xs font-mono break-all">
+                  {address}
+                </div>
+                <Button size="sm" variant="outline" onClick={copy}>
+                  {copied ? (
+                    <>
+                      <Check className="h-3 w-3" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3" /> Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onSkip}>
+            Skip for now
+          </Button>
+          <Button type="button" onClick={onContinue} className="min-w-32">
+            Continue
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onSkip}>
-          Skip for now
-        </Button>
-        <Button type="button" onClick={onContinue}>
-          Continue
-        </Button>
-      </div>
-    </div>
+    </StepCard>
   );
 }
 
@@ -446,83 +477,85 @@ function StepPayees({
   const valid = rows.some((r) => r.label.trim() && r.address.trim());
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        const drafts = rows.filter((r) => r.label.trim() && r.address.trim());
-        onAddPayees(drafts);
-      }}
-      className="space-y-6 max-w-xl"
-    >
-      <StepHeader step={3} />
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>Payees</Label>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={add}
-            disabled={busy}
-          >
-            <Plus className="h-3 w-3" /> Add row
-          </Button>
+    <StepCard>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const drafts = rows.filter((r) => r.label.trim() && r.address.trim());
+          onAddPayees(drafts);
+        }}
+        className="space-y-6"
+      >
+        <StepHeader step={3} />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Payees</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={add}
+              disabled={busy}
+            >
+              <Plus className="h-3 w-3" /> Add row
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {rows.map((r, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <Input
+                  placeholder="Label (e.g. Stripe payouts)"
+                  value={r.label}
+                  onChange={(e) => update(i, { label: e.target.value })}
+                  maxLength={40}
+                  disabled={busy}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="0x…"
+                  value={r.address}
+                  onChange={(e) => update(i, { address: e.target.value })}
+                  disabled={busy}
+                  className="flex-1 font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => remove(i)}
+                  disabled={busy || rows.length === 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The agent can only pay these addresses. If you skip, payments go to
+            any address up to the spending caps.
+          </p>
         </div>
-        <div className="space-y-2">
-          {rows.map((r, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <Input
-                placeholder="Label (e.g. Stripe payouts)"
-                value={r.label}
-                onChange={(e) => update(i, { label: e.target.value })}
-                maxLength={40}
-                disabled={busy}
-                className="flex-1"
-              />
-              <Input
-                placeholder="0x…"
-                value={r.address}
-                onChange={(e) => update(i, { address: e.target.value })}
-                disabled={busy}
-                className="flex-1 font-mono text-xs"
-              />
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => remove(i)}
-                disabled={busy || rows.length === 1}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-neutral-500">
-          The agent can only pay these addresses. If you skip, payments go to
-          any address up to the spending caps.
-        </p>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
-          Back
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
-            Skip for now
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" onClick={onBack} disabled={busy}>
+            Back
           </Button>
-          <Button type="submit" disabled={busy || !valid}>
-            {busy ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Saving…
-              </>
-            ) : (
-              <>Continue</>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
+              Skip for now
+            </Button>
+            <Button type="submit" disabled={busy || !valid} className="min-w-32">
+              {busy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                </>
+              ) : (
+                <>Continue</>
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </StepCard>
   );
 }
 
@@ -551,94 +584,123 @@ function StepPermission({
   const [monthly, setMonthly] = React.useState("2000");
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onCreate({ perPayment: Number(perPayment), monthly: Number(monthly) });
-      }}
-      className="space-y-6 max-w-md"
-    >
-      <StepHeader step={4} />
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="perPayment">Per-payment limit (USD)</Label>
-          <Input
-            id="perPayment"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={perPayment}
-            onChange={(e) => setPerPayment(e.target.value)}
-            required
-            disabled={busy}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="monthly">Monthly limit (USD)</Label>
-          <Input
-            id="monthly"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={monthly}
-            onChange={(e) => setMonthly(e.target.value)}
-            required
-            disabled={busy}
-          />
-        </div>
-      </div>
-      <div className="rounded-md border bg-neutral-50 p-3 text-xs text-neutral-600">
-        <div className="font-medium text-foreground mb-1">
-          What gets enforced on-chain
-        </div>
-        {savedPayees.length > 0 ? (
-          <div>
-            {agentName} can only pay{" "}
-            <span className="font-medium text-foreground">
-              {savedPayees.map((p) => p.label).join(", ")}
-            </span>
-            , up to the per-payment cap, up to the monthly cap.
+    <StepCard>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onCreate({ perPayment: Number(perPayment), monthly: Number(monthly) });
+        }}
+        className="space-y-6"
+      >
+        <StepHeader step={4} />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="perPayment">Per-payment limit (USD)</Label>
+            <Input
+              id="perPayment"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={perPayment}
+              onChange={(e) => setPerPayment(e.target.value)}
+              required
+              disabled={busy}
+            />
           </div>
-        ) : (
-          <div>
-            {agentName} can pay any recipient, up to the per-payment cap, up to
-            the monthly cap.
+          <div className="space-y-2">
+            <Label htmlFor="monthly">Monthly limit (USD)</Label>
+            <Input
+              id="monthly"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={monthly}
+              onChange={(e) => setMonthly(e.target.value)}
+              required
+              disabled={busy}
+            />
           </div>
-        )}
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
-          Back
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
-            Skip for now
-          </Button>
-          <Button type="submit" disabled={busy}>
-            {busy ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Creating…
-              </>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground">
+          <BadgeCheck className="h-4 w-4 flex-none text-foreground mt-0.5" />
+          <div>
+            <div className="font-medium text-foreground mb-1">
+              What gets enforced on-chain
+            </div>
+            {savedPayees.length > 0 ? (
+              <div>
+                {agentName} can only pay{" "}
+                <span className="font-medium text-foreground">
+                  {savedPayees.map((p) => p.label).join(", ")}
+                </span>
+                , up to the per-payment cap, up to the monthly cap.
+              </div>
             ) : (
-              <>Create API key</>
+              <div>
+                {agentName} can pay any recipient, up to the per-payment cap,
+                up to the monthly cap.
+              </div>
             )}
-          </Button>
+          </div>
         </div>
-      </div>
-    </form>
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" onClick={onBack} disabled={busy}>
+            Back
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" onClick={onSkip} disabled={busy}>
+              Skip for now
+            </Button>
+            <Button type="submit" disabled={busy} className="min-w-40">
+              {busy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+                </>
+              ) : (
+                <>Create API key</>
+              )}
+            </Button>
+          </div>
+        </div>
+        <p className="text-center text-xs text-muted-foreground">
+          You&rsquo;ll get a one-shot API key. Save it before closing.
+        </p>
+      </form>
+    </StepCard>
   );
 }
 
 // -----------------------------------------------------------------------------
-// Shared step header
+// Shared step header (dialog-style icon badge + title + description)
 // -----------------------------------------------------------------------------
 
 function StepHeader({ step }: { step: Step }) {
   const meta = STEPS.find((s) => s.id === step)!;
+  const Icon = meta.Icon;
   return (
-    <div>
-      <h2 className="text-lg font-semibold tracking-tight">{meta.title}</h2>
-      <p className="text-sm text-neutral-600 mt-1">{meta.caption}</p>
+    <div className="mb-2 flex flex-col gap-3">
+      <div
+        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border"
+        aria-hidden="true"
+      >
+        <Icon className="opacity-80" size={18} strokeWidth={2} />
+      </div>
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight text-left">
+          {meta.title}
+        </h2>
+        <p className="text-sm text-muted-foreground text-left">
+          {meta.caption}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StepCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-background p-6 shadow-sm shadow-black/5 sm:p-8">
+      {children}
     </div>
   );
 }
