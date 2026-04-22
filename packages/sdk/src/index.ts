@@ -13,7 +13,7 @@
  *   const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });
  *
  *   const payment = await rein.payments.create({
- *     to: "Stripe payouts",   // payee label, or a raw 0x… address
+ *     to: "0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518", // raw address only
  *     amountUsd: 50,
  *   });
  */
@@ -192,19 +192,31 @@ function mapStatus(status: number): ReinErrorCode {
 
 export type CreatePaymentInput = {
   /**
-   * Either a saved payee label (e.g. "Stripe payouts") or a raw recipient
-   * address if the permission allows open recipients.
+   * Recipient address. Must be a `0x…` 40-hex-char EVM address. Labels are
+   * NOT accepted — the on-chain allow-list pins specific addresses, and
+   * server-side label resolution has been removed to eliminate the
+   * ambiguity of duplicate or typo'd labels.
    */
-  to: string;
+  to: `0x${string}`;
   amountUsd: number;
   /** Optional memo stored server-side; never touches the chain. */
   note?: string;
 };
 
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+
 class PaymentsResource {
   constructor(private readonly client: Rein) {}
 
   async create(input: CreatePaymentInput): Promise<Payment> {
+    if (!ADDRESS_RE.test(input.to)) {
+      throw new ReinError({
+        code: "PAYEE_NOT_ALLOWED",
+        message:
+          "`to` must be a 0x-address (40 hex chars). Labels are not accepted.",
+        status: 400,
+      });
+    }
     const resp = await this.client.request<{ payment: Payment }>(
       "POST",
       "/api/v1/payments",

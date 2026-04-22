@@ -18,14 +18,17 @@ type Language = "node" | "python" | "curl";
 export function IntegratePanel({
   agentName,
   firstPayeeLabel,
+  firstPayeeAddress,
   hasPermission,
 }: {
   agentName: string;
   firstPayeeLabel?: string;
+  firstPayeeAddress?: string;
   hasPermission: boolean;
 }) {
   const [lang, setLang] = React.useState<Language>("node");
-  const payee = firstPayeeLabel ?? "a-payee-label";
+  const payeeAddress =
+    firstPayeeAddress ?? "0x0000000000000000000000000000000000000000";
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
@@ -68,18 +71,20 @@ export function IntegratePanel({
         <CardHeader>
           <CardTitle className="text-base">3. Send a payment</CardTitle>
           <CardDescription>
-            {firstPayeeLabel ? (
+            {firstPayeeAddress ? (
               <>
-                Using saved payee{" "}
+                Sending to{" "}
                 <span className="font-medium text-foreground">
-                  {firstPayeeLabel}
+                  {firstPayeeLabel ?? firstPayeeAddress.slice(0, 10) + "…"}
                 </span>
-                .
+                . Only raw <code className="font-mono text-xs">0x</code>
+                -addresses are accepted — labels were removed to keep recipient
+                resolution off the server.
               </>
             ) : (
               <>
                 Add a payee on the Payees tab to see a real example here. The
-                snippet below uses a placeholder label.
+                snippet below uses a placeholder address.
               </>
             )}
           </CardDescription>
@@ -96,7 +101,7 @@ export function IntegratePanel({
               cURL
             </LangTab>
           </div>
-          <CodeBlock value={snippet(lang, baseUrl, payee)} />
+          <CodeBlock value={snippet(lang, baseUrl, payeeAddress)} />
           {!hasPermission ? (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
               This agent has no active API key yet. Create a permission from

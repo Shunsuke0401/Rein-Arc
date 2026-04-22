@@ -24,7 +24,7 @@ import { Rein } from "rein-sdk";
 const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });
 
 const payment = await rein.payments.create({
-  to: "Stripe payouts", // saved payee label
+  to: "0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518", // 0x address of a saved payee
   amountUsd: 50,
 });
 
@@ -45,7 +45,7 @@ A Rein server compromise **cannot** widen these. They're pinned in the permissio
 
 ### `rein.payments.create({ to, amountUsd, note? })`
 
-Sends USDC to a recipient. Returns `{ id, status, amountUsd, to, createdAt }`.
+Sends USDC to a recipient. `to` must be a raw `0x…` address — labels are not accepted. Returns `{ id, status, amountUsd, to, createdAt }`.
 
 ### `rein.agent.status()`
 
@@ -76,7 +76,10 @@ All SDK errors are `ReinError` instances with a typed `code`:
 import { Rein, ReinError } from "rein-sdk";
 
 try {
-  await rein.payments.create({ to: "Stripe payouts", amountUsd: 99 });
+  await rein.payments.create({
+    to: "0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518",
+    amountUsd: 99,
+  });
 } catch (err) {
   if (err instanceof ReinError && err.code === "PERMISSION_CAP_EXCEEDED") {
     console.error("Over cap:", err.message);

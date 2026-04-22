@@ -32,6 +32,12 @@ export default async function AppLayout({
               >
                 Agents
               </Link>
+              <Link
+                href="/docs"
+                className="text-neutral-600 hover:text-foreground"
+              >
+                Docs
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-neutral-600">

@@ -4,7 +4,7 @@
 //   Body: { to: "<payee label> | 0x…", amountUsd: number, note?: string }
 
 import { NextResponse } from "next/server";
-import { isAddress, type Address, type Hex } from "viem";
+import type { Address, Hex } from "viem";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
@@ -13,7 +13,9 @@ import { sendUsdcFromSessionKey } from "@/lib/kernel";
 import { authenticateSdkRequest } from "@/lib/sdk-auth";
 
 const body = z.object({
-  to: z.string().min(1),
+  to: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/, "`to` must be a 0x-address (40 hex chars)."),
   amountUsd: z.coerce.number().positive().max(1_000_000),
   note: z.string().max(500).optional(),
 });
@@ -50,52 +52,19 @@ export async function POST(req: Request) {
     payeeIds?: string[];
   };
 
-  // Resolve `to` — either a label against the permission's saved payees
-  // or a raw address (open-mode).
-  let recipient: Address | undefined;
-  let counterpartyLabel: string = "External";
-
-  if (isAddress(parsed.data.to)) {
-    recipient = parsed.data.to as Address;
-    // If we have a label for this address, use it.
-    if (scope.payeeIds?.length) {
-      const match = await db.payee.findFirst({
-        where: {
-          id: { in: scope.payeeIds },
-          address: parsed.data.to.toLowerCase(),
-        },
-        select: { label: true },
-      });
-      if (match) counterpartyLabel = match.label;
-    }
-  } else if (scope.payeeIds?.length) {
+  // `to` is a raw 0x address (validated by the zod schema above). We look up
+  // a label for it ONLY for activity-log display — the authoritative recipient
+  // check is the on-chain CallPolicy's ONE_OF, which pins the allowed
+  // addresses when the permission was installed. Label lookup never decides
+  // where the money goes.
+  const recipient = parsed.data.to.toLowerCase() as Address;
+  let counterpartyLabel = "External";
+  if (scope.payeeIds?.length) {
     const match = await db.payee.findFirst({
-      where: {
-        id: { in: scope.payeeIds },
-        label: parsed.data.to,
-      },
-      select: { address: true, label: true },
+      where: { id: { in: scope.payeeIds }, address: recipient },
+      select: { label: true },
     });
-    if (!match) {
-      return NextResponse.json(
-        {
-          error: `No payee named "${parsed.data.to}" on this permission.`,
-          code: "PAYEE_NOT_ALLOWED",
-        },
-        { status: 403 },
-      );
-    }
-    recipient = match.address as Address;
-    counterpartyLabel = match.label;
-  } else {
-    return NextResponse.json(
-      {
-        error:
-          "`to` must be a 0x-address when the permission has no saved payees.",
-        code: "PAYEE_NOT_ALLOWED",
-      },
-      { status: 400 },
-    );
+    if (match) counterpartyLabel = match.label;
   }
 
   if (parsed.data.amountUsd > scope.perPaymentLimitUsd) {

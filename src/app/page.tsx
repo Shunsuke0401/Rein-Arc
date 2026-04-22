@@ -40,6 +40,9 @@ export default async function LandingPage() {
           <a href="#use-cases" className="hidden sm:inline hover:text-foreground">
             Use cases
           </a>
+          <Link href="/docs" className="hover:text-foreground">
+            Docs
+          </Link>
           <a
             href={APP_URL}
             className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:bg-foreground/90"

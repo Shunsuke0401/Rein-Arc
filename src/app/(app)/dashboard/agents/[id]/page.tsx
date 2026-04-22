@@ -308,6 +308,7 @@ export default async function AgentDetailPage({
         <IntegratePanel
           agentName={agent.name}
           firstPayeeLabel={agent.payees[0]?.label}
+          firstPayeeAddress={agent.payees[0]?.address}
           hasPermission={permissions.some((p) => p.status === "active")}
         />
       ) : null}
