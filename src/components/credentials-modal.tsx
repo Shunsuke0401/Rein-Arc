@@ -65,11 +65,6 @@ export function CredentialsModal({
 
         <div className="space-y-3">
           <CredField label="REIN_API_KEY" value={reinApiKey} tone="secret" />
-          <CredField
-            label="Organization ID"
-            value={credentials.organizationId}
-            tone="info"
-          />
 
           <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-900">
             <AlertTriangle className="h-4 w-4 flex-none mt-0.5" />
