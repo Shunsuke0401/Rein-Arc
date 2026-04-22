@@ -297,6 +297,7 @@ export default async function AgentDetailPage({
             payees={agent.payees.map((p) => ({
               id: p.id,
               label: p.label,
+              address: p.address,
               createdAt: p.createdAt.toISOString(),
             }))}
           />

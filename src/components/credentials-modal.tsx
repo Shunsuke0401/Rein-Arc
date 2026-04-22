@@ -46,10 +46,6 @@ export function CredentialsModal({
       `REIN_BASE=${base}`,
       `REIN_API_KEY=${reinApiKey}`,
       "",
-      "# Legacy two-field format (if using the older /api/payments route):",
-      `REIN_API_KEY_ID=${credentials.apiKeyId}`,
-      `REIN_API_SECRET=${credentials.apiSecret}`,
-      "",
     ].join("\n");
     await navigator.clipboard.writeText(env);
     setEnvCopied(true);
@@ -68,25 +64,11 @@ export function CredentialsModal({
         </DialogHeader>
 
         <div className="space-y-3">
-          <CredField
-            label="API key (use with rein-sdk)"
-            value={reinApiKey}
-            tone="secret"
-          />
+          <CredField label="REIN_API_KEY" value={reinApiKey} tone="secret" />
           <CredField
             label="Organization ID"
             value={credentials.organizationId}
             tone="info"
-          />
-          <CredField
-            label="API key ID"
-            value={credentials.apiKeyId}
-            tone="info"
-          />
-          <CredField
-            label="API secret"
-            value={credentials.apiSecret}
-            tone="secret"
           />
 
           <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-900">

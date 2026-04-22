@@ -19,17 +19,46 @@ import { decrypt, encryptionConfigured } from "@/lib/encryption";
 import { sendUsdcFromSessionKey } from "@/lib/kernel";
 
 const body = z.object({
-  apiKeyId: z.string().min(1),
-  apiSecret: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+  apiKeyId: z.string().min(1).optional(),
+  apiSecret: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(),
   payeeId: z.string().min(1).optional(),
   to: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
   amountUsd: z.coerce.number().positive().max(1_000_000),
 });
 
+function unpackBearer(
+  header: string | null,
+): { apiKeyId: string; apiSecret: `0x${string}` } | null {
+  if (!header) return null;
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const token = match[1].trim();
+  if (!token.startsWith("rein_")) return null;
+  const rest = token.slice("rein_".length);
+  const i = rest.indexOf("_");
+  if (i < 1) return null;
+  const apiKeyId = rest.slice(0, i);
+  const hex = rest.slice(i + 1);
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) return null;
+  return { apiKeyId, apiSecret: `0x${hex}` as `0x${string}` };
+}
+
 export async function POST(req: Request) {
-  const parsed = body.safeParse(await req.json().catch(() => null));
+  const raw = await req.json().catch(() => null);
+  const parsed = body.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  // Prefer Authorization: Bearer rein_<id>_<hex>, fall back to legacy body fields.
+  const bearer = unpackBearer(req.headers.get("authorization"));
+  const apiKeyId = bearer?.apiKeyId ?? parsed.data.apiKeyId;
+  const apiSecret = bearer?.apiSecret ?? (parsed.data.apiSecret as `0x${string}` | undefined);
+  if (!apiKeyId || !apiSecret) {
+    return NextResponse.json(
+      { error: "Provide Authorization: Bearer <REIN_API_KEY> or apiKeyId+apiSecret in body." },
+      { status: 401 },
+    );
   }
   if (!encryptionConfigured) {
     return NextResponse.json(
@@ -39,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   const permission = await db.permission.findUnique({
-    where: { id: parsed.data.apiKeyId },
+    where: { id: apiKeyId },
     include: { agent: true },
   });
   if (
@@ -109,7 +138,7 @@ export async function POST(req: Request) {
   try {
     result = await sendUsdcFromSessionKey({
       serializedSessionKeyAccount: serialized,
-      sessionKeyPrivateKey: parsed.data.apiSecret as Hex,
+      sessionKeyPrivateKey: apiSecret as Hex,
       to: recipient,
       amountUsd: parsed.data.amountUsd,
     });
