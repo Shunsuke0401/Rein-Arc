@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Plus } from "lucide-react";
-import type { Address } from "viem";
 
 import { ActivityList } from "@/components/activity-list";
 import { AgentDepositPanel } from "@/components/agent-deposit-panel";
@@ -64,7 +63,7 @@ export default async function AgentDetailPage({
 
   const [summary, activity] = await Promise.all([
     summarizeAgent(agent),
-    getAgentActivity(agent.id, agent.accountAddress as Address, 25),
+    getAgentActivity(agent.id, 25),
   ]);
 
   const payeeLabels = Object.fromEntries(
@@ -202,12 +201,14 @@ export default async function AgentDetailPage({
             </CardHeader>
             <CardContent>
               <ActivityList
-                items={activity.map((a) => ({
-                  timestamp: a.timestamp,
-                  direction: a.direction,
-                  counterpartyLabel: a.counterpartyLabel,
-                  amountUsd: a.amountUsd,
-                }))}
+                items={activity
+                  .filter((a) => a.status !== "failed")
+                  .map((a) => ({
+                    timestamp: a.timestamp,
+                    direction: a.direction,
+                    counterpartyLabel: a.counterpartyLabel,
+                    amountUsd: a.amountUsd,
+                  }))}
               />
             </CardContent>
           </Card>

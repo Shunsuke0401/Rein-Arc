@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import type { Address } from "viem";
 
 import { getAgentActivity } from "@/lib/activity";
 import { summarizeAgent } from "@/lib/agents";
@@ -28,7 +27,7 @@ export async function GET(_req: Request, ctx: Params) {
 
   const [summary, activity] = await Promise.all([
     summarizeAgent(agent),
-    getAgentActivity(agent.id, agent.accountAddress as Address, 25),
+    getAgentActivity(agent.id, 25),
   ]);
 
   return NextResponse.json({
