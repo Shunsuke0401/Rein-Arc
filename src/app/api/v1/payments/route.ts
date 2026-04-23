@@ -52,11 +52,10 @@ export async function POST(req: Request) {
     payeeIds?: string[];
   };
 
-  // `to` is a raw 0x address (validated by the zod schema above). We look up
-  // a label for it ONLY for activity-log display — the authoritative recipient
-  // check is the on-chain CallPolicy's ONE_OF, which pins the allowed
-  // addresses when the permission was installed. Label lookup never decides
-  // where the money goes.
+  // The on-chain CallPolicy's ONE_OF is the authoritative recipient
+  // enforcement; this app-layer check only exists so a non-allowed payee
+  // gets a clean PAYEE_NOT_ALLOWED instead of an AA23 revert from the bundler
+  // (and so we don't leak RPC/userOp internals in the error body).
   const recipient = parsed.data.to.toLowerCase() as Address;
   let counterpartyLabel = "External";
   if (scope.payeeIds?.length) {
@@ -64,7 +63,16 @@ export async function POST(req: Request) {
       where: { id: { in: scope.payeeIds }, address: recipient },
       select: { label: true },
     });
-    if (match) counterpartyLabel = match.label;
+    if (!match) {
+      return NextResponse.json(
+        {
+          error: "Recipient is not on this permission's payee allow-list.",
+          code: "PAYEE_NOT_ALLOWED",
+        },
+        { status: 403 },
+      );
+    }
+    counterpartyLabel = match.label;
   }
 
   if (parsed.data.amountUsd > scope.perPaymentLimitUsd) {
@@ -88,6 +96,11 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Keep raw RPC/userOp/chain detail server-side only — never send to
+    // clients. Leaking these would expose the ZeroDev project ID (grief
+    // target), the agent's smart-account address (CLAUDE.md invariant #5),
+    // and internal vocabulary (invariant #1).
+    console.error("[/api/v1/payments] userOp rejected:", msg);
     await db.transaction.create({
       data: {
         agentId: permission.agentId,
@@ -99,7 +112,10 @@ export async function POST(req: Request) {
       },
     });
     return NextResponse.json(
-      { error: `Payment rejected: ${msg}`, code: "PERMISSION_CAP_EXCEEDED" },
+      {
+        error: "Payment rejected by on-chain policy.",
+        code: "PERMISSION_CAP_EXCEEDED",
+      },
       { status: 403 },
     );
   }
