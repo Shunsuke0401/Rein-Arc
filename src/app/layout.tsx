@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Rein — Spend-control layer for AI agents",
   description:
-    "Rein is the spend-control layer that lets AI agents transact safely with cryptographic bounds enforced by Tempo.",
+    "Rein is the spend-control layer that lets AI agents transact safely, with every action guardrailed by cryptography.",
 };
 
 export default function RootLayout({
