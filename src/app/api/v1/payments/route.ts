@@ -56,13 +56,19 @@ export async function POST(req: Request) {
   // enforcement; this app-layer check only exists so a non-allowed payee
   // gets a clean PAYEE_NOT_ALLOWED instead of an AA23 revert from the bundler
   // (and so we don't leak RPC/userOp internals in the error body).
+  //
+  // Compare addresses case-insensitively in JS — historical payee rows were
+  // stored checksummed, and SQLite/Postgres string equality is case-sensitive.
+  // New rows are written lowercase (see /api/agents/[id]/payees), so this
+  // shim is only needed until all legacy rows are normalized.
   const recipient = parsed.data.to.toLowerCase() as Address;
   let counterpartyLabel = "External";
   if (scope.payeeIds?.length) {
-    const match = await db.payee.findFirst({
-      where: { id: { in: scope.payeeIds }, address: recipient },
-      select: { label: true },
+    const candidates = await db.payee.findMany({
+      where: { id: { in: scope.payeeIds } },
+      select: { label: true, address: true },
     });
+    const match = candidates.find((p) => p.address.toLowerCase() === recipient);
     if (!match) {
       return NextResponse.json(
         {
