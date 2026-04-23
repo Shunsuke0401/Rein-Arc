@@ -38,9 +38,7 @@ export async function POST(req: Request, ctx: Params) {
     data: {
       agentId: agent.id,
       label: parsed.data.label,
-      // Normalize to lowercase so equality checks elsewhere (e.g. the
-      // /api/v1/payments pre-check) don't depend on checksum casing.
-      address: parsed.data.address.toLowerCase(),
+      address: parsed.data.address,
     },
   });
 
