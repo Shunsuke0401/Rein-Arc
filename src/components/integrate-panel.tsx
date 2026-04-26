@@ -42,12 +42,25 @@ export function IntegratePanel({
         </p>
       </div>
 
+      <div className="flex gap-1 text-xs">
+        <LangTab id="node" active={lang === "node"} onClick={() => setLang("node")}>
+          Node.js
+        </LangTab>
+        <LangTab id="python" active={lang === "python"} onClick={() => setLang("python")}>
+          Python
+        </LangTab>
+        <LangTab id="curl" active={lang === "curl"} onClick={() => setLang("curl")}>
+          cURL
+        </LangTab>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">1. Install the SDK</CardTitle>
+          <CardTitle className="text-base">1. Install</CardTitle>
+          <CardDescription>{installDescription(lang)}</CardDescription>
         </CardHeader>
         <CardContent>
-          <CodeBlock value="npm install rein-sdk" />
+          <CodeBlock value={installCommand(lang)} />
         </CardContent>
       </Card>
 
@@ -55,9 +68,10 @@ export function IntegratePanel({
         <CardHeader>
           <CardTitle className="text-base">2. Set your API key</CardTitle>
           <CardDescription>
-            Paste the value from the one-shot credentials modal you saw when
-            you created this agent. If you lost it, create a new agent — we
-            don&rsquo;t store secrets.
+            Save the one-shot credentials from when you created this agent
+            into a <code className="font-mono text-xs">.env</code> file in
+            your project. If you lost them, create a new agent — we don&rsquo;t
+            store secrets.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,17 +104,6 @@ export function IntegratePanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-1 text-xs">
-            <LangTab id="node" active={lang === "node"} onClick={() => setLang("node")}>
-              Node.js
-            </LangTab>
-            <LangTab id="python" active={lang === "python"} onClick={() => setLang("python")}>
-              Python
-            </LangTab>
-            <LangTab id="curl" active={lang === "curl"} onClick={() => setLang("curl")}>
-              cURL
-            </LangTab>
-          </div>
           <CodeBlock value={snippet(lang, baseUrl, payeeAddress)} />
           {!hasPermission ? (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
@@ -108,6 +111,11 @@ export function IntegratePanel({
               the Permissions tab to get a key.
             </p>
           ) : null}
+          <p className="text-xs text-neutral-500">
+            Heads-up: the very first payment for a new agent takes ~20-40s
+            because the smart account is being deployed on chain. Subsequent
+            calls return in a few seconds.
+          </p>
         </CardContent>
       </Card>
 
@@ -193,39 +201,70 @@ function CodeBlock({ value }: { value: string }) {
   );
 }
 
+function installCommand(lang: Language): string {
+  if (lang === "node") return "npm install rein-sdk dotenv";
+  if (lang === "python") return "pip install httpx python-dotenv";
+  return "# cURL is built-in on macOS and Linux — nothing to install.";
+}
+
+function installDescription(lang: Language): string {
+  if (lang === "node") {
+    return "rein-sdk is the official client; dotenv loads your API key from .env at runtime.";
+  }
+  if (lang === "python") {
+    return "There is no official Python SDK yet — the API is plain HTTPS, so httpx (or requests) plus python-dotenv is enough.";
+  }
+  return "Skip ahead.";
+}
+
 function snippet(lang: Language, baseUrl: string, payee: string): string {
   if (lang === "node") {
     return [
-      `import { Rein } from "rein-sdk";`,
+      `import "dotenv/config";`,
+      `import { Rein, ReinError } from "rein-sdk";`,
       ``,
       `const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });`,
       ``,
-      `const payment = await rein.payments.create({`,
-      `  to: "${payee}",`,
-      `  amountUsd: 5,`,
-      `});`,
-      ``,
-      `console.log(payment.status); // "confirmed"`,
+      `try {`,
+      `  const payment = await rein.payments.create({`,
+      `    to: "${payee}",`,
+      `    amountUsd: 5,`,
+      `  });`,
+      `  console.log(payment.status); // "confirmed"`,
+      `} catch (err) {`,
+      `  if (err instanceof ReinError) {`,
+      `    console.error(\`[\${err.code}] \${err.message}\`);`,
+      `    process.exit(1);`,
+      `  }`,
+      `  throw err;`,
+      `}`,
     ].join("\n");
   }
   if (lang === "python") {
     return [
-      `import os, httpx`,
+      `import os`,
+      `import httpx`,
+      `from dotenv import load_dotenv`,
+      ``,
+      `load_dotenv()  # reads REIN_API_KEY from .env in the current dir`,
       ``,
       `r = httpx.post(`,
       `    "${baseUrl}/api/v1/payments",`,
       `    headers={"authorization": f"Bearer {os.environ['REIN_API_KEY']}"},`,
       `    json={"to": "${payee}", "amountUsd": 5},`,
-      `    timeout=30,`,
+      `    # First payment for a new agent deploys the smart account on chain`,
+      `    # — it can take 20-40s. Stay above the server's 180s receipt wait.`,
+      `    timeout=200,`,
       `)`,
+      `print(r.status_code, r.json())`,
       `r.raise_for_status()`,
-      `print(r.json())`,
     ].join("\n");
   }
   return [
     `curl -sS -X POST ${baseUrl}/api/v1/payments \\`,
     `  -H "authorization: Bearer $REIN_API_KEY" \\`,
     `  -H "content-type: application/json" \\`,
+    `  --max-time 200 \\`,
     `  -d '{"to":"${payee}","amountUsd":5}'`,
   ].join("\n");
 }

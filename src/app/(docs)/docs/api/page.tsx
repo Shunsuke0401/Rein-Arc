@@ -175,13 +175,15 @@ export default function ApiEndpointsPage() {
   -H "authorization: Bearer $REIN_API_KEY"`}
       />
 
-      <H2 id="sdk">SDK</H2>
+      <H2 id="sdk">SDK (Node / TypeScript)</H2>
       <P>
         The <Code>rein-sdk</Code> npm package is a one-file TypeScript client
         over these endpoints. Install, set <Code>REIN_API_KEY</Code>, call.
       </P>
-      <Pre language="bash">{`npm install rein-sdk`}</Pre>
-      <Pre language="ts">{`import { Rein } from "rein-sdk";
+      <Pre language="bash">{`npm install rein-sdk dotenv`}</Pre>
+      <Pre language="ts">{`import "dotenv/config";
+import { Rein } from "rein-sdk";
+
 const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });
 
 await rein.payments.create({
@@ -191,6 +193,43 @@ await rein.payments.create({
 await rein.agent.status();
 await rein.agent.payees();
 await rein.agent.activity({ limit: 10 });`}</Pre>
+
+      <H2 id="python">From Python</H2>
+      <P>
+        There is no official Python SDK yet — the API is plain HTTPS, so any
+        HTTP client works. Below uses <Code>httpx</Code> plus{" "}
+        <Code>python-dotenv</Code> to load the key from a{" "}
+        <Code>.env</Code> file.
+      </P>
+      <Pre language="bash">{`pip install httpx python-dotenv`}</Pre>
+      <Pre language="python">{`import os
+import httpx
+from dotenv import load_dotenv
+
+load_dotenv()  # reads REIN_API_KEY from .env in the current dir
+
+r = httpx.post(
+    "${BASE}/api/v1/payments",
+    headers={"authorization": f"Bearer {os.environ['REIN_API_KEY']}"},
+    json={
+        "to": "0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518",
+        "amountUsd": 5,
+    },
+    # First payment for a new agent deploys the smart account on chain — it
+    # can take 20-40s. Stay above the server's 180s receipt wait.
+    timeout=200,
+)
+print(r.status_code, r.json())
+r.raise_for_status()`}</Pre>
+      <Callout tone="warn" title="On the first call's latency">
+        The very first <Code>/api/v1/payments</Code> call for a new agent
+        bundles a Kernel deployment, the permission install, and the transfer
+        into one user-operation — expect ~20-40s end-to-end. Subsequent calls
+        return in a few seconds. If your client cuts off too early (<Code>httpx</Code>{" "}
+        defaults to 5s; <Code>requests</Code> has no default timeout), you&rsquo;ll
+        see a transport error even though the payment lands on chain. Set the
+        client timeout to at least 200s.
+      </Callout>
     </article>
   );
 }
