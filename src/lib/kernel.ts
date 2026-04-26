@@ -11,7 +11,6 @@ import { KERNEL_V3_1 } from "@zerodev/sdk/constants";
 import { signerToEcdsaValidator } from "@zerodev/ecdsa-validator";
 import {
   deserializePermissionAccount,
-  RATE_LIMIT_POLICY_WITH_RESET_CONTRACT,
   serializePermissionAccount,
   toPermissionValidator,
 } from "@zerodev/permissions";
@@ -167,23 +166,20 @@ function buildPoliciesForScope(scope: SessionKeyScope) {
       },
     ],
   });
-  // Approximate a monthly cap as "N transfers max per 30-day window, each
-  // bounded by the per-tx cap". A precise monthly-USD cap would need a
-  // custom policy contract.
-  //
-  // We MUST use RATE_LIMIT_POLICY_WITH_RESET_CONTRACT (not the default
-  // RATE_LIMIT_POLICY_CONTRACT) — the default treats `interval` as a
-  // cooldown between consecutive calls, so with interval=30 days a session
-  // key can only fire one userOp per month. The with-reset variant treats
-  // it as a window: up to `count` calls per `interval`, then resets.
-  const windowSeconds = (scope.windowDays ?? 30) * 24 * 60 * 60;
+  // Approximate a monthly cap as "N transfers max over the lifetime of the
+  // permission, each bounded by the per-tx cap". A precise rolling monthly
+  // window would need RATE_LIMIT_POLICY_WITH_RESET_CONTRACT — but that
+  // policy contract is NOT deployed on Arc (verified via eth_getCode). The
+  // deployed RATE_LIMIT_POLICY_CONTRACT treats `interval > 0` as a cooldown
+  // between consecutive calls, which would give "1 payment per 30 days"
+  // semantics — wrong. With `interval: 0` it becomes a pure lifetime count,
+  // which is the right shape for our cap (rotate the permission to refresh).
   const maxCalls = Math.max(
     1,
     Math.ceil(scope.monthlyCapUsd / Math.max(1, scope.perTxCapUsd)),
   );
   const rateLimitPolicy = toRateLimitPolicy({
-    policyAddress: RATE_LIMIT_POLICY_WITH_RESET_CONTRACT,
-    interval: windowSeconds,
+    interval: 0,
     count: maxCalls,
   });
   return [callPolicy, rateLimitPolicy];
