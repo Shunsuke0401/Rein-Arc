@@ -11,6 +11,7 @@ import { KERNEL_V3_1 } from "@zerodev/sdk/constants";
 import { signerToEcdsaValidator } from "@zerodev/ecdsa-validator";
 import {
   deserializePermissionAccount,
+  RATE_LIMIT_POLICY_WITH_RESET_CONTRACT,
   serializePermissionAccount,
   toPermissionValidator,
 } from "@zerodev/permissions";
@@ -166,15 +167,22 @@ function buildPoliciesForScope(scope: SessionKeyScope) {
       },
     ],
   });
-  // Approximate a monthly cap as "N transfers max per 30-day window where each
-  // transfer is bounded by the per-tx cap". This is a coarse upper bound — the
-  // precise monthly-USD cap would need a custom policy contract.
+  // Approximate a monthly cap as "N transfers max per 30-day window, each
+  // bounded by the per-tx cap". A precise monthly-USD cap would need a
+  // custom policy contract.
+  //
+  // We MUST use RATE_LIMIT_POLICY_WITH_RESET_CONTRACT (not the default
+  // RATE_LIMIT_POLICY_CONTRACT) — the default treats `interval` as a
+  // cooldown between consecutive calls, so with interval=30 days a session
+  // key can only fire one userOp per month. The with-reset variant treats
+  // it as a window: up to `count` calls per `interval`, then resets.
   const windowSeconds = (scope.windowDays ?? 30) * 24 * 60 * 60;
   const maxCalls = Math.max(
     1,
     Math.ceil(scope.monthlyCapUsd / Math.max(1, scope.perTxCapUsd)),
   );
   const rateLimitPolicy = toRateLimitPolicy({
+    policyAddress: RATE_LIMIT_POLICY_WITH_RESET_CONTRACT,
     interval: windowSeconds,
     count: maxCalls,
   });
