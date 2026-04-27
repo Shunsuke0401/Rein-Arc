@@ -1,17 +1,11 @@
 # rein-sdk
 
-Bounded payments for AI agents. One API key. On-chain spend caps the caller can't bypass.
+Bounded payments for AI agents. One API key, hard spend caps the caller can't bypass.
 
 ## Install
 
 ```bash
 npm install rein-sdk
-```
-
-(Post-hackathon this goes live on npm. Today it lives in the Rein-Arc repo; point your `package.json` at the GitHub path if you want to try it before publish:)
-
-```bash
-npm install github:Shunsuke0401/Rein-Arc#main
 ```
 
 ## Quickstart
@@ -24,7 +18,7 @@ import { Rein } from "rein-sdk";
 const rein = new Rein({ apiKey: process.env.REIN_API_KEY! });
 
 const payment = await rein.payments.create({
-  to: "0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518", // 0x address of a saved payee
+  to: "0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518", // address of a saved payee
   amountUsd: 50,
 });
 
@@ -35,17 +29,17 @@ console.log(payment.status); // "confirmed"
 
 Every API key is scoped by the permission you set at creation:
 
-- **Per-payment cap** — a single call over this amount is rejected by the smart account.
+- **Per-payment cap** — a single call over this amount is rejected.
 - **Monthly cap** — approximated as N calls × per-payment, reset every 30 days.
-- **Payee allow-list** — if you saved payees, the `to` address must match one of them. Over-list recipients revert on-chain.
+- **Payee allow-list** — if you saved payees, the `to` value must match one of them. Anything else is rejected.
 
-A Rein server compromise **cannot** widen these. They're pinned in the permission validator on-chain.
+A Rein server compromise **cannot** widen these. They're enforced cryptographically.
 
 ## API
 
 ### `rein.payments.create({ to, amountUsd, note? })`
 
-Sends USDC to a recipient. `to` must be a raw `0x…` address — labels are not accepted. Returns `{ id, status, amountUsd, to, createdAt }`.
+Sends funds to a recipient. `to` is the destination address of a saved payee. Returns `{ id, status, amountUsd, to, createdAt }`.
 
 ### `rein.agent.status()`
 
@@ -53,7 +47,7 @@ Returns agent-level view: name, balance, spent this month, caps, remaining month
 
 ### `rein.agent.payees()`
 
-Returns saved payees for this permission as `[{ id, label }]`. Addresses are never returned.
+Returns saved payees for this permission as `[{ id, label }]`. Destination data is never returned.
 
 ### `rein.agent.activity({ limit? })`
 
@@ -66,9 +60,9 @@ All SDK errors are `ReinError` instances with a typed `code`:
 | Code | Meaning |
 |---|---|
 | `INVALID_API_KEY` | Missing, malformed, or revoked key. |
-| `PERMISSION_CAP_EXCEEDED` | Amount exceeds the per-payment cap, or the on-chain policy rejected the userOp. |
+| `PERMISSION_CAP_EXCEEDED` | Amount exceeds the per-payment cap, or the request was rejected by the policy. |
 | `PAYEE_NOT_ALLOWED` | Recipient not on the permission's payee allow-list. |
-| `PAYMENT_IN_FLIGHT` | A previous payment with the same nonce is still being processed by the bundler. Wait ~30s and retry. Do **not** retry immediately — you'll just keep hitting this. |
+| `PAYMENT_IN_FLIGHT` | A previous payment is still being processed. Wait ~30s and retry. Do **not** retry immediately — you'll just keep hitting this. |
 | `NOT_FOUND` | Payee label or resource doesn't exist. |
 | `NETWORK_ERROR` | Timeout or transport failure. |
 | `INTERNAL` | Server error. |

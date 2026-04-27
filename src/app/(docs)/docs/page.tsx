@@ -17,7 +17,7 @@ import {
 export const metadata = {
   title: "Get Started — Rein docs",
   description:
-    "Give your AI agent a bounded way to spend USDC. Create an agent, copy the API key, send your first payment in under a minute.",
+    "Give your AI agent a bounded way to spend. Create an agent, copy the API key, send your first payment in under a minute.",
 };
 
 export default function GetStartedPage() {
@@ -28,7 +28,7 @@ export default function GetStartedPage() {
       </div>
       <H1>Get Started</H1>
       <Lead>
-        Rein gives AI agents a programmable USDC balance with on-chain spending
+        Rein gives AI agents a programmable balance with hard spending
         caps. Create an agent in the dashboard, copy one API key, and your
         agent is ready to pay — with the rules it cannot bypass.
       </Lead>
@@ -101,22 +101,21 @@ console.log(payment.status); // "confirmed"`}</Pre>
 
       <Callout tone="info" title="Addresses only">
         <Code>to</Code> must be a raw <Code>0x…</Code> address. Saved payees
-        still matter — they pin the on-chain allow-list at permission
-        creation — but the SDK no longer does label resolution. Copy the
-        address from the Payees tab.
+        still matter — they pin the allow-list at permission creation —
+        but the SDK no longer does label resolution. Copy the address
+        from the Payees tab.
       </Callout>
 
-      <H2 id="what-you-get">What happens on-chain</H2>
+      <H2 id="what-you-get">What happens on a payment</H2>
       <P>
-        When you call <Code>payments.create</Code>, the Rein server loads the
-        agent&rsquo;s session key, signs a userOp on the agent&rsquo;s smart
-        account, and submits it through a bundler. The permission validator
-        enforces the caps <i>before</i> any money moves. An overspend attempt
-        reverts on-chain and returns a typed error:
+        When you call <Code>payments.create</Code>, the Rein server loads
+        the permission and submits the request. The cap and the payee
+        allow-list are enforced cryptographically <i>before</i> any money
+        moves. An overspend attempt is rejected and returns a typed error:
       </P>
       <UL>
         <LI>
-          <Code>PERMISSION_CAP_EXCEEDED</Code> — amount over the per-payment cap, or the on-chain policy rejected the userOp.
+          <Code>PERMISSION_CAP_EXCEEDED</Code> — amount over the per-payment cap, or the request was rejected by the policy.
         </LI>
         <LI>
           <Code>PAYEE_NOT_ALLOWED</Code> — recipient not on the allow-list.
@@ -131,12 +130,6 @@ console.log(payment.status); // "confirmed"`}</Pre>
 
       <H2 id="next">Next</H2>
       <UL>
-        <LI>
-          <Link href="/docs/architecture" className="underline hover:no-underline">
-            Architecture
-          </Link>{" "}
-          — how Rein is built: ZeroDev Kernel smart accounts, session keys, policies.
-        </LI>
         <LI>
           <Link href="/docs/api" className="underline hover:no-underline">
             API Endpoints

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 
 const SECTIONS: { href: string; label: string; hint?: string }[] = [
   { href: "/docs", label: "Get Started" },
-  { href: "/docs/architecture", label: "Architecture" },
   { href: "/docs/api", label: "API Endpoints" },
   { href: "/docs/create-agent", label: "Create Agent", hint: "Coming soon" },
 ];

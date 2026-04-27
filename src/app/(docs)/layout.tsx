@@ -60,7 +60,7 @@ export default function DocsLayout({
 
       <footer className="border-t bg-neutral-50 mt-10">
         <div className="max-w-6xl mx-auto px-6 py-6 text-xs text-neutral-500 flex flex-wrap items-center gap-4 justify-between">
-          <div>Built on Arc with ZeroDev Kernel v3 smart accounts.</div>
+          <div>Bounded payments for AI agents.</div>
           <div className="flex items-center gap-4">
             <Link href="/" className="hover:text-foreground">
               rein.dev

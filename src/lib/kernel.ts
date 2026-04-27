@@ -32,14 +32,20 @@ import { entryPoint07Address } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 import {
-  USDC_ADDRESS,
-  USDC_DECIMALS,
+  RATE_LIMIT_VARIANT,
+  STABLE_ADDRESS,
+  STABLE_DECIMALS,
   ZERODEV_BUNDLER_URL,
   ZERODEV_PAYMASTER_URL,
-  arcChain,
-  arcPublic,
+  chain,
+  publicClient,
   erc20Abi,
-} from "./arc";
+} from "./chain";
+import {
+  RATE_LIMIT_POLICY_CONTRACT,
+  RATE_LIMIT_POLICY_WITH_RESET_CONTRACT,
+} from "@zerodev/permissions";
+import { rateLimitWithResetAvailable } from "./chain-presence";
 
 // ZeroDev Kernel v3.1 on EntryPoint v0.7. Every agent is one Kernel; every
 // permission is one session-key plugin installed on that Kernel.
@@ -83,7 +89,7 @@ function paymasterClient() {
     throw new Error("ZERODEV_PAYMASTER_URL is not configured");
   }
   return createZeroDevPaymasterClient({
-    chain: arcChain,
+    chain: chain,
     transport: http(ZERODEV_PAYMASTER_URL),
   });
 }
@@ -98,12 +104,12 @@ export function generateAgentOwnerPrivateKey(): Hex {
 
 export async function buildKernelAccountForOwner(ownerPrivateKey: Hex) {
   const signer = privateKeyToAccount(ownerPrivateKey);
-  const ecdsaValidator = await signerToEcdsaValidator(arcPublic, {
+  const ecdsaValidator = await signerToEcdsaValidator(publicClient, {
     signer,
     entryPoint: ENTRY_POINT,
     kernelVersion: KERNEL_VERSION,
   });
-  const account = await createKernelAccount(arcPublic, {
+  const account = await createKernelAccount(publicClient, {
     plugins: { sudo: ecdsaValidator },
     entryPoint: ENTRY_POINT,
     kernelVersion: KERNEL_VERSION,
@@ -124,9 +130,9 @@ function kernelClientForAccount<A extends Awaited<ReturnType<typeof createKernel
   const paymaster = paymasterClient();
   return createKernelAccountClient({
     account,
-    chain: arcChain,
+    chain: chain,
     bundlerTransport: bundlerTransport(),
-    client: arcPublic,
+    client: publicClient,
     paymaster: {
       getPaymasterData: (userOperation) =>
         paymaster.sponsorUserOperation({ userOperation }),
@@ -138,10 +144,26 @@ function kernelClientForAccount<A extends Awaited<ReturnType<typeof createKernel
 // Permission install / revoke
 // -----------------------------------------------------------------------------
 
-function buildPoliciesForScope(scope: SessionKeyScope) {
+async function resolveUseWithReset(): Promise<boolean> {
+  if (RATE_LIMIT_VARIANT === "lifetime") return false;
+  const available = await rateLimitWithResetAvailable();
+  if (RATE_LIMIT_VARIANT === "with-reset") {
+    if (!available) {
+      throw new Error(
+        "RATE_LIMIT_VARIANT=with-reset but RATE_LIMIT_POLICY_WITH_RESET_CONTRACT is not deployed on this chain",
+      );
+    }
+    return true;
+  }
+  return available;
+}
+
+const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60;
+
+async function buildPoliciesForScope(scope: SessionKeyScope) {
   const perTxCapWei = parseUnits(
     String(scope.perTxCapUsd),
-    USDC_DECIMALS,
+    STABLE_DECIMALS,
   );
   const recipientArg =
     scope.allowedPayees && scope.allowedPayees.length > 0
@@ -158,7 +180,7 @@ function buildPoliciesForScope(scope: SessionKeyScope) {
     policyVersion: CallPolicyVersion.V0_0_5,
     permissions: [
       {
-        target: USDC_ADDRESS,
+        target: STABLE_ADDRESS,
         abi: erc20Abi,
         functionName: "transfer",
         valueLimit: 0n,
@@ -166,22 +188,31 @@ function buildPoliciesForScope(scope: SessionKeyScope) {
       },
     ],
   });
-  // Approximate a monthly cap as "N transfers max over the lifetime of the
-  // permission, each bounded by the per-tx cap". A precise rolling monthly
-  // window would need RATE_LIMIT_POLICY_WITH_RESET_CONTRACT — but that
-  // policy contract is NOT deployed on Arc (verified via eth_getCode). The
-  // deployed RATE_LIMIT_POLICY_CONTRACT treats `interval > 0` as a cooldown
-  // between consecutive calls, which would give "1 payment per 30 days"
-  // semantics — wrong. With `interval: 0` it becomes a pure lifetime count,
-  // which is the right shape for our cap (rotate the permission to refresh).
   const maxCalls = Math.max(
     1,
     Math.ceil(scope.monthlyCapUsd / Math.max(1, scope.perTxCapUsd)),
   );
-  const rateLimitPolicy = toRateLimitPolicy({
-    interval: 0,
-    count: maxCalls,
-  });
+  // Two rate-limit policy contracts exist:
+  //   - RATE_LIMIT_POLICY_CONTRACT: `interval > 0` = cooldown between
+  //     consecutive calls (NOT a window), so we use `interval: 0` to get a
+  //     pure lifetime count cap. Rotate the permission to refresh it.
+  //   - RATE_LIMIT_POLICY_WITH_RESET_CONTRACT: rolling-window variant; the
+  //     proper "monthly cap" shape. Used when the env says so AND the
+  //     contract is actually deployed on the configured chain.
+  // The selection is settled at install time and baked into the on-chain
+  // validator — existing permissions are unaffected by config changes.
+  const useWithReset = await resolveUseWithReset();
+  const rateLimitPolicy = useWithReset
+    ? toRateLimitPolicy({
+        policyAddress: RATE_LIMIT_POLICY_WITH_RESET_CONTRACT as Address,
+        interval: THIRTY_DAYS_SECONDS,
+        count: maxCalls,
+      })
+    : toRateLimitPolicy({
+        policyAddress: RATE_LIMIT_POLICY_CONTRACT as Address,
+        interval: 0,
+        count: maxCalls,
+      });
   return [callPolicy, rateLimitPolicy];
 }
 
@@ -199,7 +230,7 @@ export async function installSessionKey(params: {
 }): Promise<InstallSessionKeyResult> {
   const { ownerPrivateKey, scope } = params;
   const ownerSigner = privateKeyToAccount(ownerPrivateKey);
-  const sudoValidator = await signerToEcdsaValidator(arcPublic, {
+  const sudoValidator = await signerToEcdsaValidator(publicClient, {
     signer: ownerSigner,
     entryPoint: ENTRY_POINT,
     kernelVersion: KERNEL_VERSION,
@@ -209,15 +240,15 @@ export async function installSessionKey(params: {
   const sessionKeySigner = privateKeyToAccount(sessionKeyPrivateKey);
   const modularSigner = await toECDSASigner({ signer: sessionKeySigner });
 
-  const policies = buildPoliciesForScope(scope);
-  const permissionValidator = await toPermissionValidator(arcPublic, {
+  const policies = await buildPoliciesForScope(scope);
+  const permissionValidator = await toPermissionValidator(publicClient, {
     signer: modularSigner,
     policies,
     entryPoint: ENTRY_POINT,
     kernelVersion: KERNEL_VERSION,
   });
 
-  const account = await createKernelAccount(arcPublic, {
+  const account = await createKernelAccount(publicClient, {
     plugins: {
       sudo: sudoValidator,
       regular: permissionValidator,
@@ -272,7 +303,7 @@ export async function revokeSessionKey(params: {
 }): Promise<string | undefined> {
   const { ownerPrivateKey, sessionKeyAddress, scope } = params;
   const ownerSigner = privateKeyToAccount(ownerPrivateKey);
-  const sudoValidator = await signerToEcdsaValidator(arcPublic, {
+  const sudoValidator = await signerToEcdsaValidator(publicClient, {
     signer: ownerSigner,
     entryPoint: ENTRY_POINT,
     kernelVersion: KERNEL_VERSION,
@@ -283,14 +314,14 @@ export async function revokeSessionKey(params: {
   // can produce the same validatorId + enableData as install did.
   const emptySigner = addressToEmptyAccount(sessionKeyAddress);
   const modularSigner = await toECDSASigner({ signer: emptySigner });
-  const permissionValidator = await toPermissionValidator(arcPublic, {
+  const permissionValidator = await toPermissionValidator(publicClient, {
     signer: modularSigner,
-    policies: buildPoliciesForScope(scope),
+    policies: await buildPoliciesForScope(scope),
     entryPoint: ENTRY_POINT,
     kernelVersion: KERNEL_VERSION,
   });
 
-  const ownerAccount = await createKernelAccount(arcPublic, {
+  const ownerAccount = await createKernelAccount(publicClient, {
     plugins: { sudo: sudoValidator },
     entryPoint: ENTRY_POINT,
     kernelVersion: KERNEL_VERSION,
@@ -322,7 +353,7 @@ export async function sendUsdcFromSessionKey(params: {
   const sessionKeySigner = privateKeyToAccount(sessionKeyPrivateKey);
   const modularSigner = await toECDSASigner({ signer: sessionKeySigner });
   const account = await deserializePermissionAccount(
-    arcPublic,
+    publicClient,
     ENTRY_POINT,
     KERNEL_VERSION,
     serializedSessionKeyAccount,
@@ -332,11 +363,11 @@ export async function sendUsdcFromSessionKey(params: {
   const data = encodeFunctionData({
     abi: erc20Abi,
     functionName: "transfer",
-    args: [to, parseUnits(String(amountUsd), USDC_DECIMALS)],
+    args: [to, parseUnits(String(amountUsd), STABLE_DECIMALS)],
   });
   const hash = await client.sendUserOperation({
     callData: await account.encodeCalls([
-      { to: USDC_ADDRESS, data, value: 0n },
+      { to: STABLE_ADDRESS, data, value: 0n },
     ]),
   });
   // Arc's bundler can take >60s to confirm on a cold path; viem's default
@@ -355,8 +386,8 @@ export async function sweepAgentUsdc(params: {
 }): Promise<{ txHash?: Hex; amount: bigint }> {
   const { ownerPrivateKey, to } = params;
   const { account } = await buildKernelAccountForOwner(ownerPrivateKey);
-  const balance = (await arcPublic.readContract({
-    address: USDC_ADDRESS,
+  const balance = (await publicClient.readContract({
+    address: STABLE_ADDRESS,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: [account.address],
@@ -371,7 +402,7 @@ export async function sweepAgentUsdc(params: {
   try {
     const hash = await client.sendUserOperation({
       callData: await account.encodeCalls([
-        { to: USDC_ADDRESS, data, value: 0n },
+        { to: STABLE_ADDRESS, data, value: 0n },
       ]),
     });
     const receipt = await client.waitForUserOperationReceipt({ hash });

@@ -34,9 +34,9 @@ export default function CreateAgentPage() {
 
       <Lead>
         Programmatic agent creation is next on the roadmap. The server-side
-        piece already exists — deploying a Kernel, installing a session key,
-        returning one-shot credentials — and the SDK&rsquo;s shape will mirror
-        it. Until the route ships, create agents in the dashboard.
+        piece already exists — provisioning the agent, scoping a permission,
+        and returning one-shot credentials — and the SDK&rsquo;s shape will
+        mirror it. Until the route ships, create agents in the dashboard.
       </Lead>
 
       <div className="mb-6">

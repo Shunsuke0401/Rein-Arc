@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 import type { Hex } from "viem";
 import { z } from "zod";
 
-import { zerodevConfigured } from "@/lib/arc";
+import { zerodevConfigured } from "@/lib/chain";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decrypt, encrypt, encryptionConfigured } from "@/lib/encryption";

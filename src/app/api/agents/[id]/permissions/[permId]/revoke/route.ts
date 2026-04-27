@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Address, Hex } from "viem";
 
-import { zerodevConfigured } from "@/lib/arc";
+import { zerodevConfigured } from "@/lib/chain";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decrypt, encryptionConfigured } from "@/lib/encryption";

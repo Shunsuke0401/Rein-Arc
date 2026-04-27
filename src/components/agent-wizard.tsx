@@ -47,7 +47,7 @@ const STEPS: StepMeta[] = [
   {
     id: 2,
     title: "Fund the agent",
-    caption: "Send USDC to the deposit address, or skip and fund later.",
+    caption: "Send funds to the deposit address, or skip and fund later.",
     Icon: Banknote,
   },
   {
@@ -392,8 +392,8 @@ function StepDeposit({
               Deposit address for {agentName}
             </Label>
             <p className="text-xs text-muted-foreground mt-1">
-              Send USDC on Arc testnet to this address. Fund now or later — you
-              can reveal this again from the agent page.
+              Send funds to this address. Fund now or later — you can
+              reveal this again from the agent page.
             </p>
           </div>
           {loading ? (
@@ -625,7 +625,7 @@ function StepPermission({
           <BadgeCheck className="h-4 w-4 flex-none text-foreground mt-0.5" />
           <div>
             <div className="font-medium text-foreground mb-1">
-              What gets enforced on-chain
+              What gets enforced
             </div>
             {savedPayees.length > 0 ? (
               <div>

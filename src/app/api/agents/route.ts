@@ -19,7 +19,7 @@ import {
   generateAgentOwnerPrivateKey,
   installSessionKey,
 } from "@/lib/kernel";
-import { zerodevConfigured } from "@/lib/arc";
+import { zerodevConfigured } from "@/lib/chain";
 
 const payeeInput = z.object({
   label: z.string().min(1).max(40),

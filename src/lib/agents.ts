@@ -2,7 +2,7 @@ import "server-only";
 
 import { formatUnits, type Address } from "viem";
 
-import { USDC_DECIMALS, getUsdcBalance } from "./arc";
+import { STABLE_DECIMALS, getStableBalance } from "./chain";
 import { getAgentSpentThisMonth } from "./activity";
 import { db } from "./db";
 
@@ -24,7 +24,7 @@ export async function summarizeAgent(agent: {
   createdAt: Date;
 }): Promise<AgentSummary> {
   const [balanceRaw, spent, permissionCount] = await Promise.all([
-    getUsdcBalance(agent.accountAddress as Address),
+    getStableBalance(agent.accountAddress as Address),
     getAgentSpentThisMonth(agent.id),
     db.permission.count({
       where: { agentId: agent.id, status: "active" },
@@ -34,7 +34,7 @@ export async function summarizeAgent(agent: {
   return {
     id: agent.id,
     name: agent.name,
-    balanceUsd: Number(formatUnits(balanceRaw, USDC_DECIMALS)),
+    balanceUsd: Number(formatUnits(balanceRaw, STABLE_DECIMALS)),
     spentThisMonthUsd: spent,
     status: agent.status,
     createdAt: agent.createdAt.toISOString(),

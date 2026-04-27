@@ -37,8 +37,8 @@ export function IntegratePanel({
         <h2 className="text-lg font-semibold">Integrate this agent</h2>
         <p className="text-sm text-neutral-600 mt-0.5">
           Give your AI agent a bounded way to spend {agentName}&rsquo;s balance.
-          The caps you set are enforced on chain — a compromised caller
-          can&rsquo;t overspend.
+          The caps you set are enforced cryptographically — a compromised
+          caller can&rsquo;t overspend.
         </p>
       </div>
 
@@ -113,8 +113,8 @@ export function IntegratePanel({
           ) : null}
           <p className="text-xs text-neutral-500">
             Heads-up: the very first payment for a new agent takes ~20-40s
-            because the smart account is being deployed on chain. Subsequent
-            calls return in a few seconds.
+            while the agent is being provisioned. Subsequent calls return
+            in a few seconds.
           </p>
         </CardContent>
       </Card>
@@ -124,10 +124,10 @@ export function IntegratePanel({
           <CardTitle className="text-base">4. What gets enforced</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-neutral-600 space-y-2">
-          <Row>Every call goes through the session key installed on this agent&rsquo;s smart account.</Row>
-          <Row>Amounts over the per-payment cap are rejected by the smart account itself.</Row>
-          <Row>Recipients outside the payee allow-list revert on chain.</Row>
-          <Row>Monthly rate-limit is encoded on-chain too — the bundler stops accepting new calls once you hit it.</Row>
+          <Row>Every call is signed with this permission&rsquo;s scoped credential.</Row>
+          <Row>Amounts over the per-payment cap are rejected before any money moves.</Row>
+          <Row>Recipients outside the payee allow-list are rejected.</Row>
+          <Row>The monthly cap is enforced the same way — once you hit it, new calls fail until the cap resets.</Row>
         </CardContent>
       </Card>
     </div>
@@ -252,8 +252,8 @@ function snippet(lang: Language, baseUrl: string, payee: string): string {
       `    "${baseUrl}/api/v1/payments",`,
       `    headers={"authorization": f"Bearer {os.environ['REIN_API_KEY']}"},`,
       `    json={"to": "${payee}", "amountUsd": 5},`,
-      `    # First payment for a new agent deploys the smart account on chain`,
-      `    # — it can take 20-40s. Stay above the server's 180s receipt wait.`,
+      `    # First payment for a new agent provisions the agent — it can`,
+      `    # take 20-40s. Stay above the server's 180s receipt wait.`,
       `    timeout=200,`,
       `)`,
       `print(r.status_code, r.json())`,

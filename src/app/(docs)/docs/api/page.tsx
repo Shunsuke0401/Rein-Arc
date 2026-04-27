@@ -68,11 +68,11 @@ export default function ApiEndpointsPage() {
         path="/api/v1/payments"
         description={
           <>
-            Send USDC from the agent. <Code>to</Code> must be a raw{" "}
+            Send funds from the agent. <Code>to</Code> must be a raw{" "}
             <Code>0x…</Code> recipient address (labels are not accepted).
-            Amount is in USD. The on-chain permission validator enforces the
-            caps and the recipient allow-list — rejected attempts return{" "}
-            <Code>PERMISSION_CAP_EXCEEDED</Code> or{" "}
+            Amount is in USD. The permission&rsquo;s caps and the recipient
+            allow-list are enforced cryptographically — rejected attempts
+            return <Code>PERMISSION_CAP_EXCEEDED</Code> or{" "}
             <Code>PAYEE_NOT_ALLOWED</Code>.
           </>
         }
@@ -93,9 +93,9 @@ export default function ApiEndpointsPage() {
 }`}
         errors={[
           { code: "INVALID_API_KEY", meaning: "Missing, malformed, or revoked key." },
-          { code: "PERMISSION_CAP_EXCEEDED", meaning: "Amount exceeds the per-payment cap, or the on-chain policy rejected the userOp." },
+          { code: "PERMISSION_CAP_EXCEEDED", meaning: "Amount exceeds the per-payment cap, or the request was rejected by the policy." },
           { code: "PAYEE_NOT_ALLOWED", meaning: "Recipient is not in this permission's payee allow-list." },
-          { code: "PAYMENT_IN_FLIGHT", meaning: "A previous payment is still being processed by the bundler. Wait ~30s and retry — do not retry immediately." },
+          { code: "PAYMENT_IN_FLIGHT", meaning: "A previous payment is still being processed. Wait ~30s and retry — do not retry immediately." },
         ]}
         example={`curl -X POST ${BASE}/api/v1/payments \\
   -H "authorization: Bearer $REIN_API_KEY" \\
@@ -156,8 +156,8 @@ export default function ApiEndpointsPage() {
         path="/api/v1/agent/activity?limit=10"
         description={
           <>
-            Recent USDC transfers in and out of the agent. Normalized to
-            labels + amounts; no transaction hashes or addresses.
+            Recent payments in and out of the agent. Normalized to labels +
+            amounts; no transaction hashes or addresses.
             <Code>limit</Code> defaults to 10, max 100.
           </>
         }
@@ -216,20 +216,20 @@ r = httpx.post(
         "to": "0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518",
         "amountUsd": 5,
     },
-    # First payment for a new agent deploys the smart account on chain — it
-    # can take 20-40s. Stay above the server's 180s receipt wait.
+    # The first payment for a new agent provisions the agent and can take
+    # 20-40s. Stay above the server's 180s receipt wait.
     timeout=200,
 )
 print(r.status_code, r.json())
 r.raise_for_status()`}</Pre>
       <Callout tone="warn" title="On the first call's latency">
         The very first <Code>/api/v1/payments</Code> call for a new agent
-        bundles a Kernel deployment, the permission install, and the transfer
-        into one user-operation — expect ~20-40s end-to-end. Subsequent calls
-        return in a few seconds. If your client cuts off too early (<Code>httpx</Code>{" "}
-        defaults to 5s; <Code>requests</Code> has no default timeout), you&rsquo;ll
-        see a transport error even though the payment lands on chain. Set the
-        client timeout to at least 200s.
+        provisions the agent and the permission as part of the payment —
+        expect ~20-40s end-to-end. Subsequent calls return in a few seconds.
+        If your client cuts off too early (<Code>httpx</Code> defaults to
+        5s; <Code>requests</Code> has no default timeout), you&rsquo;ll see
+        a transport error even though the payment lands. Set the client
+        timeout to at least 200s.
       </Callout>
     </article>
   );
