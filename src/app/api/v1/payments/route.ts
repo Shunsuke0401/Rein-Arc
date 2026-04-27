@@ -10,6 +10,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { decrypt, encryptionConfigured } from "@/lib/encryption";
 import { sendUsdcFromSessionKey } from "@/lib/kernel";
+import { getStableBalance, usdToStableWei } from "@/lib/chain";
 import { authenticateSdkRequest } from "@/lib/sdk-auth";
 
 const body = z.object({
@@ -88,6 +89,23 @@ export async function POST(req: Request) {
         code: "PERMISSION_CAP_EXCEEDED",
       },
       { status: 403 },
+    );
+  }
+
+  // Balance pre-check. Without this, an empty agent fails inside the
+  // ERC-20 transfer and the catch-all maps it to PERMISSION_CAP_EXCEEDED,
+  // which is misleading. Returning 402 with a typed code lets callers
+  // recover (top up the agent) instead of guessing.
+  const balanceWei = await getStableBalance(
+    permission.agent.accountAddress as Address,
+  );
+  if (balanceWei < usdToStableWei(parsed.data.amountUsd)) {
+    return NextResponse.json(
+      {
+        error: "Agent balance is insufficient for this payment.",
+        code: "INSUFFICIENT_BALANCE",
+      },
+      { status: 402 },
     );
   }
 

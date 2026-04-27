@@ -60,6 +60,7 @@ All SDK errors are `ReinError` instances with a typed `code`:
 | Code | Meaning |
 |---|---|
 | `INVALID_API_KEY` | Missing, malformed, or revoked key. |
+| `INSUFFICIENT_BALANCE` | The agent's balance is below the requested amount. Top up and retry. |
 | `PERMISSION_CAP_EXCEEDED` | Amount exceeds the per-payment cap, or the request was rejected by the policy. |
 | `PAYEE_NOT_ALLOWED` | Recipient not on the permission's payee allow-list. |
 | `PAYMENT_IN_FLIGHT` | A previous payment is still being processed. Wait ~30s and retry. Do **not** retry immediately — you'll just keep hitting this. |

@@ -24,6 +24,7 @@
 
 export type ReinErrorCode =
   | "INVALID_API_KEY"
+  | "INSUFFICIENT_BALANCE"
   | "PERMISSION_CAP_EXCEEDED"
   | "PAYEE_NOT_ALLOWED"
   | "PAYMENT_IN_FLIGHT"
@@ -181,6 +182,7 @@ export class Rein {
 
 function mapStatus(status: number): ReinErrorCode {
   if (status === 401) return "INVALID_API_KEY";
+  if (status === 402) return "INSUFFICIENT_BALANCE";
   if (status === 403) return "PERMISSION_CAP_EXCEEDED";
   if (status === 404) return "NOT_FOUND";
   if (status === 429) return "PAYMENT_IN_FLIGHT";

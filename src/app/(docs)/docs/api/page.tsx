@@ -93,6 +93,7 @@ export default function ApiEndpointsPage() {
 }`}
         errors={[
           { code: "INVALID_API_KEY", meaning: "Missing, malformed, or revoked key." },
+          { code: "INSUFFICIENT_BALANCE", meaning: "The agent's balance is below the requested amount. Top up and retry." },
           { code: "PERMISSION_CAP_EXCEEDED", meaning: "Amount exceeds the per-payment cap, or the request was rejected by the policy." },
           { code: "PAYEE_NOT_ALLOWED", meaning: "Recipient is not in this permission's payee allow-list." },
           { code: "PAYMENT_IN_FLIGHT", meaning: "A previous payment is still being processed. Wait ~30s and retry — do not retry immediately." },

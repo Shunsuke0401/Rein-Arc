@@ -18,6 +18,7 @@ export type SdkAuthResult =
       status: string;
       scope: string;
       sessionKeyCiphertext: string | null;
+      agent: { accountAddress: string };
     } }
   | { ok: false; response: Response };
 
@@ -72,6 +73,7 @@ export async function authenticateSdkRequest(
       status: true,
       scope: true,
       sessionKeyCiphertext: true,
+      agent: { select: { accountAddress: true } },
     },
   });
   if (!permission || permission.status !== "active") {

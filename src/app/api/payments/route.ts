@@ -17,6 +17,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { decrypt, encryptionConfigured } from "@/lib/encryption";
 import { sendUsdcFromSessionKey } from "@/lib/kernel";
+import { getStableBalance, usdToStableWei } from "@/lib/chain";
 
 const body = z.object({
   apiKeyId: z.string().min(1).optional(),
@@ -130,6 +131,19 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Amount exceeds this permission's per-payment limit." },
       { status: 403 },
+    );
+  }
+
+  const balanceWei = await getStableBalance(
+    permission.agent.accountAddress as Address,
+  );
+  if (balanceWei < usdToStableWei(parsed.data.amountUsd)) {
+    return NextResponse.json(
+      {
+        error: "Agent balance is insufficient for this payment.",
+        code: "INSUFFICIENT_BALANCE",
+      },
+      { status: 402 },
     );
   }
 
