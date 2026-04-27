@@ -116,10 +116,13 @@ console.log(payment.status); // "confirmed"`}</Pre>
       </P>
       <UL>
         <LI>
-          <Code>PERMISSION_CAP_EXCEEDED</Code> — amount over the per-payment cap.
+          <Code>PERMISSION_CAP_EXCEEDED</Code> — amount over the per-payment cap, or the on-chain policy rejected the userOp.
         </LI>
         <LI>
           <Code>PAYEE_NOT_ALLOWED</Code> — recipient not on the allow-list.
+        </LI>
+        <LI>
+          <Code>PAYMENT_IN_FLIGHT</Code> — a previous payment is still being processed; wait ~30s before retrying.
         </LI>
         <LI>
           <Code>INVALID_API_KEY</Code> — missing, malformed, or revoked key.

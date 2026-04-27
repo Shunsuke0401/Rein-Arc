@@ -93,8 +93,9 @@ export default function ApiEndpointsPage() {
 }`}
         errors={[
           { code: "INVALID_API_KEY", meaning: "Missing, malformed, or revoked key." },
-          { code: "PERMISSION_CAP_EXCEEDED", meaning: "Amount exceeds the per-payment cap (or monthly quota)." },
+          { code: "PERMISSION_CAP_EXCEEDED", meaning: "Amount exceeds the per-payment cap, or the on-chain policy rejected the userOp." },
           { code: "PAYEE_NOT_ALLOWED", meaning: "Recipient is not in this permission's payee allow-list." },
+          { code: "PAYMENT_IN_FLIGHT", meaning: "A previous payment is still being processed by the bundler. Wait ~30s and retry — do not retry immediately." },
         ]}
         example={`curl -X POST ${BASE}/api/v1/payments \\
   -H "authorization: Bearer $REIN_API_KEY" \\

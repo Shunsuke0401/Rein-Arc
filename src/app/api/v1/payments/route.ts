@@ -117,6 +117,24 @@ export async function POST(req: Request) {
         status: "failed",
       },
     });
+    // Distinguish "another userOp with the same nonce is still pending"
+    // from a real on-chain rejection. Both surface as exceptions from the
+    // bundler, but the recovery is completely different: the former just
+    // needs the caller to wait, while the latter means caps/policies are
+    // violated. Returning PERMISSION_CAP_EXCEEDED for both is misleading
+    // and triggers wrong retry behavior in SDK consumers.
+    if (
+      /Already known|replacement transaction underpriced|AA25/i.test(msg)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A previous payment is still being processed. Wait ~30s and try again.",
+          code: "PAYMENT_IN_FLIGHT",
+        },
+        { status: 429 },
+      );
+    }
     return NextResponse.json(
       {
         error: "Payment rejected by on-chain policy.",

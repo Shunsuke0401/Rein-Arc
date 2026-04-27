@@ -66,8 +66,9 @@ All SDK errors are `ReinError` instances with a typed `code`:
 | Code | Meaning |
 |---|---|
 | `INVALID_API_KEY` | Missing, malformed, or revoked key. |
-| `PERMISSION_CAP_EXCEEDED` | Amount exceeds the per-payment cap. |
+| `PERMISSION_CAP_EXCEEDED` | Amount exceeds the per-payment cap, or the on-chain policy rejected the userOp. |
 | `PAYEE_NOT_ALLOWED` | Recipient not on the permission's payee allow-list. |
+| `PAYMENT_IN_FLIGHT` | A previous payment with the same nonce is still being processed by the bundler. Wait ~30s and retry. Do **not** retry immediately — you'll just keep hitting this. |
 | `NOT_FOUND` | Payee label or resource doesn't exist. |
 | `NETWORK_ERROR` | Timeout or transport failure. |
 | `INTERNAL` | Server error. |
