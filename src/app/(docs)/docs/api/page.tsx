@@ -19,7 +19,7 @@ export const metadata = {
     "The four Bearer-authenticated Rein endpoints: payments, agent status, payees, activity.",
 };
 
-const BASE = "https://rein-arc-production.up.railway.app";
+const BASE = "https://rein.up.railway.app";
 
 export default function ApiEndpointsPage() {
   return (

@@ -86,7 +86,7 @@ export type ActivityEntry = {
 // Client
 // ---------------------------------------------------------------------------
 
-const DEFAULT_BASE_URL = "https://rein-arc-production.up.railway.app";
+const DEFAULT_BASE_URL = "https://rein.up.railway.app";
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export type ReinOptions = {

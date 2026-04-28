@@ -66,7 +66,7 @@ export default function GetStartedPage() {
         The moment an agent is created, the dashboard shows a one-shot
         credentials modal. Click <b>Copy as .env</b> — your key looks like:
       </P>
-      <Pre>{`REIN_BASE=https://rein-arc-production.up.railway.app
+      <Pre>{`REIN_BASE=https://rein.up.railway.app
 REIN_API_KEY=rein_<permissionId>_<sessionKeyHex>`}</Pre>
       <Callout tone="warn" title="Save it now">
         The secret half of the key is never shown again. If you lose it, create
@@ -94,7 +94,7 @@ const payment = await rein.payments.create({
 
 console.log(payment.status); // "confirmed"`}</Pre>
 
-      <Pre language="bash">{`curl -X POST https://rein-arc-production.up.railway.app/api/v1/payments \\
+      <Pre language="bash">{`curl -X POST https://rein.up.railway.app/api/v1/payments \\
   -H "authorization: Bearer $REIN_API_KEY" \\
   -H "content-type: application/json" \\
   -d '{"to":"0x5D262Ad5F60189Bb21Eb6cF6BCA7Db04F2C01518","amountUsd":5}'`}</Pre>
